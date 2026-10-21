@@ -1,0 +1,34 @@
+{
+  "info": {
+    "name": "Multimodal RAG",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000" }],
+  "item": [
+    {
+      "name": "Server",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+        }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "item": [
+        {
+          "name": "Upload PDF",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/uploads",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file", "src": [] }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
