@@ -29,6 +29,6 @@ module.exports = [
     rules: { "react-native/no-raw-text": "off" },
   },
   {
-    ignores: ["**/dist/*", "**/android/*", "**/ios/*", "**/.one/*"],
+    ignores: ["**/dist/*", "**/android/*", "**/ios/*", "**/.one/*", "**/routes.d.ts"],
   },
 ];

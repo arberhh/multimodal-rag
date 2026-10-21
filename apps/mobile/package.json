@@ -13,6 +13,7 @@
     "ios": "one run:ios",
     "prebuild:native": "one prebuild",
     "serve": "one serve",
+    "test": "jest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -28,8 +29,15 @@
     "react-native-worklets": "~0.13.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
     "@react-native-community/template": "^0.88.0",
+    "@react-native/babel-preset": "^0.88.0",
+    "@react-native/jest-preset": "^0.88.0",
+    "@testing-library/react-native": "^14.1.0",
+    "@types/jest": "^30.0.0",
     "@types/react": "^19.3.0",
+    "babel-jest": "^30.5.2",
+    "jest": "^30.5.2",
     "typescript": "7.0.2",
     "vite": "^8.2.2"
   }
