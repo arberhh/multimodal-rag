@@ -1,0 +1,5 @@
+if git diff --cached --quiet --diff-filter=ACMR; then
+  exit 0
+fi
+git diff --cached --name-only --diff-filter=ACMR -z | xargs -0 ./node_modules/.bin/oxfmt --no-error-on-unmatched-pattern
+git diff --cached --name-only --diff-filter=ACMR -z | xargs -0 git add

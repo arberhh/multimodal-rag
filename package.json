@@ -1,0 +1,31 @@
+{
+  "name": "multimodal-rag",
+  "private": true,
+  "scripts": {
+    "dev:server": "pnpm --filter @multimodal-rag/server dev",
+    "dev:mobile": "pnpm --filter @multimodal-rag/mobile dev",
+    "ios": "pnpm --filter @multimodal-rag/mobile ios",
+    "android": "pnpm --filter @multimodal-rag/mobile android",
+    "run:ios": "sh -c 'pnpm dev:mobile & DEV=$!; trap \"kill $DEV\" EXIT INT TERM; until curl -s -o /dev/null http://localhost:8081; do sleep 1; done; pnpm ios; wait $DEV'",
+    "run:android": "sh -c 'pnpm dev:mobile & DEV=$!; trap \"kill $DEV\" EXIT INT TERM; until curl -s -o /dev/null http://localhost:8081; do sleep 1; done; pnpm android; wait $DEV'",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "oxlint --deny-warnings . && eslint . --max-warnings=0",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "deadcode": "knip",
+    "prepare": "git config core.hooksPath .githooks"
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^8.72.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-native": "^5.0.0",
+    "knip": "^6.42.1",
+    "oxfmt": "^0.74.0",
+    "oxlint": "^1.89.0",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "packageManager": "pnpm@10.19.0"
+}

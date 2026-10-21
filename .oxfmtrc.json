@@ -1,0 +1,3 @@
+{
+  "ignorePatterns": ["dist/*", "android/*", "ios/*", ".one/*", "pnpm-lock.yaml"]
+}

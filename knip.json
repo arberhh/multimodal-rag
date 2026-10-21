@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    "apps/mobile": {
+      "entry": ["app/**/*.{ts,tsx}"],
+      "project": ["app/**/*.{ts,tsx}", "features/**/*.{ts,tsx}"],
+      "vite": false,
+      "ignore": ["react-native.config.cjs"],
+      "ignoreDependencies": ["@react-native-community/template"]
+    },
+    "apps/server": {
+      "project": ["src/**/*.ts"]
+    }
+  }
+}
