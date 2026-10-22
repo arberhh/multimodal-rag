@@ -3,13 +3,9 @@ import { formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 
 // SwiftUI: a native inset-grouped List
-export function DocumentsIOS({ docs, uploading, error, addPdf, refresh }: DocumentsViewProps) {
+export function DocumentsIOS({ docs, uploading, error, addPdf }: DocumentsViewProps) {
   return (
-    <One.iOS.List
-      listStyle="insetGrouped"
-      style={{ flex: 1 }}
-      swiftStyle={{ refreshable: refresh }}
-    >
+    <One.iOS.List listStyle="insetGrouped" style={{ flex: 1 }}>
       <One.iOS.Section footer={error ?? ""}>
         <One.iOS.Button
           label={uploading ? "Uploading…" : "Add PDF"}
