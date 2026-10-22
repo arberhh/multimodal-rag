@@ -9,6 +9,7 @@
     "run:ios": "sh -c 'pnpm dev:mobile & DEV=$!; trap \"kill $DEV\" EXIT INT TERM; until curl -s -o /dev/null http://localhost:8081; do sleep 1; done; pnpm ios; wait $DEV'",
     "run:android": "sh -c 'pnpm dev:mobile & DEV=$!; trap \"kill $DEV\" EXIT INT TERM; until curl -s -o /dev/null http://localhost:8081; do sleep 1; done; pnpm android; wait $DEV'",
     "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
     "lint": "oxlint --deny-warnings . && eslint . --max-warnings=0",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",

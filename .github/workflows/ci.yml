@@ -29,3 +29,6 @@ jobs:
 
       - name: Dead code
         run: pnpm deadcode
+
+      - name: Test
+        run: pnpm test
