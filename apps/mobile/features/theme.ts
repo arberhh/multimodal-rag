@@ -1,5 +1,6 @@
 export const colors = {
   background: "#fff",
+  border: "#e4e4e7",
   buttonBackground: "#18181b",
   buttonText: "#fff",
   connected: "#22c55e",

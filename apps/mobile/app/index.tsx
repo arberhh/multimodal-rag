@@ -1,3 +1,4 @@
+import { Link } from "one";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "~/features/theme";
 import { serverUrl } from "~/features/server/config";
@@ -27,6 +28,12 @@ export default function Index() {
         <Text style={styles.statusText}>{label[status]}</Text>
       </View>
       <Text style={styles.url}>{serverUrl}</Text>
+
+      {status === "connected" && (
+        <Link href="/documents" style={styles.button}>
+          <Text style={styles.buttonText}>Your PDFs</Text>
+        </Link>
+      )}
 
       {status === "unreachable" && (
         <Pressable onPress={retry} style={styles.button}>
