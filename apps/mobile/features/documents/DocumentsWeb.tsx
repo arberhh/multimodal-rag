@@ -1,13 +1,8 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, type ListRenderItemInfo, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "~/features/theme";
-import type { DocumentStatus } from "./api";
+import type { Document } from "./api";
 import { formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
-
-const dotColor: Record<DocumentStatus, string> = {
-  processing: colors.pending,
-  ready: colors.connected,
-};
 
 // web has no SwiftUI or Compose, so this one is plain React Native views
 export function DocumentsWeb({ docs, uploading, error, addPdf }: DocumentsViewProps) {
@@ -25,23 +20,31 @@ export function DocumentsWeb({ docs, uploading, error, addPdf }: DocumentsViewPr
 
       <FlatList
         data={docs}
-        keyExtractor={(doc) => doc.id}
+        keyExtractor={keyExtractor}
         ListEmptyComponent={<Text style={styles.muted}>No documents yet.</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <View style={styles.rowText}>
-              <Text style={styles.name} numberOfLines={1}>
-                {item.file_name}
-              </Text>
-              <Text style={styles.muted}>{formatSize(item.size_bytes)}</Text>
-            </View>
-            <View style={styles.status}>
-              <View style={[styles.dot, { backgroundColor: dotColor[item.status] }]} />
-              <Text>{statusLabel[item.status]}</Text>
-            </View>
-          </View>
-        )}
+        renderItem={renderDocument}
       />
+    </View>
+  );
+}
+
+function keyExtractor(doc: Document) {
+  return doc.id;
+}
+
+function renderDocument({ item }: ListRenderItemInfo<Document>) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowText}>
+        <Text style={styles.name} numberOfLines={1}>
+          {item.file_name}
+        </Text>
+        <Text style={styles.muted}>{formatSize(item.size_bytes)}</Text>
+      </View>
+      <View style={styles.status}>
+        <View style={[styles.dot, dotStyle[item.status]]} />
+        <Text>{statusLabel[item.status]}</Text>
+      </View>
     </View>
   );
 }
@@ -76,4 +79,9 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, gap: 2 },
   status: { alignItems: "center", flexDirection: "row", gap: 6 },
+});
+
+const dotStyle = StyleSheet.create({
+  processing: { backgroundColor: colors.pending },
+  ready: { backgroundColor: colors.connected },
 });
