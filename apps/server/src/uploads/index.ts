@@ -5,6 +5,8 @@ import { createWriteStream } from "node:fs";
 import { mkdir, stat, unlink } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 
+const MAX_FILE_BYTES = 100 * 1024 * 1024;
+
 async function saveToDatabase(app: FastifyInstance, id: string, fileName: string, size: number) {
   await app.pg.query("INSERT INTO documents (id, file_name, size_bytes) VALUES ($1, $2, $3)", [
     id,
@@ -20,7 +22,8 @@ async function getDocuments(app: FastifyInstance) {
 }
 
 export const uploads: FastifyPluginAsync = async (app) => {
-  await app.register(multipart);
+  // the default limit is Fastify's 1 MB body limit, too small for real PDFs
+  await app.register(multipart, { limits: { fileSize: MAX_FILE_BYTES } });
   await mkdir("uploads", { recursive: true });
 
   app.post("/uploads", async (req, reply) => {
@@ -30,12 +33,11 @@ export const uploads: FastifyPluginAsync = async (app) => {
     // random name: the client's filename must never decide where we write
     const id = randomUUID();
     const path = `uploads/${id}.pdf`;
-    await pipeline(data.file, createWriteStream(path));
-
     try {
+      await pipeline(data.file, createWriteStream(path));
       await saveToDatabase(app, id, data.filename, (await stat(path)).size);
     } catch (err) {
-      await unlink(path); // no row, so no orphan file
+      await unlink(path).catch(() => {}); // too big or no row: don't keep a half file
       throw err;
     }
 
