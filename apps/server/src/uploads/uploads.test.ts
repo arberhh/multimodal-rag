@@ -49,14 +49,18 @@ describe("uploads", () => {
 
   describe("POST /uploads", () => {
     it("saves the file and a documents row with the same id", async () => {
-      const { app, calls } = setup(() => ({ rows: [] }));
+      // like Postgres' RETURNING: hand back the inserted row
+      const { app, calls } = setup(({ values: [id, file_name, size_bytes] }) => ({
+        rows: [{ id, file_name, size_bytes, status: "processing" }],
+      }));
       await app.register(uploads);
 
       const res = await app.inject({ method: "POST", url: "/uploads", payload: pdf("report.pdf") });
 
       assert.equal(res.statusCode, 200);
-      const { id, name } = res.json();
-      assert.equal(name, "report.pdf");
+      const { id, file_name, status } = res.json().doc;
+      assert.equal(file_name, "report.pdf");
+      assert.equal(status, "processing");
       assert.deepEqual(await readdir(join(dir, "uploads")), [`${id}.pdf`]);
       assert.equal(calls.length, 1);
       assert.match(calls[0].sql, /INSERT INTO documents/);

@@ -8,11 +8,12 @@ import { pipeline } from "node:stream/promises";
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
 
 async function saveToDatabase(app: FastifyInstance, id: string, fileName: string, size: number) {
-  await app.pg.query("INSERT INTO documents (id, file_name, size_bytes) VALUES ($1, $2, $3)", [
-    id,
-    fileName,
-    size,
-  ]);
+  const { rows } = await app.pg.query(
+    `INSERT INTO documents (id, file_name, size_bytes) VALUES ($1, $2, $3)
+     RETURNING id, file_name, size_bytes, status, created_at`,
+    [id, fileName, size],
+  );
+  return rows[0];
 }
 
 async function getDocuments(app: FastifyInstance) {
@@ -35,13 +36,11 @@ export const uploads: FastifyPluginAsync = async (app) => {
     const path = `uploads/${id}.pdf`;
     try {
       await pipeline(data.file, createWriteStream(path));
-      await saveToDatabase(app, id, data.filename, (await stat(path)).size);
+      return { doc: await saveToDatabase(app, id, data.filename, (await stat(path)).size) };
     } catch (err) {
       await unlink(path).catch(() => {}); // too big or no row: don't keep a half file
       throw err;
     }
-
-    return { id, name: data.filename };
   });
 
   app.get("/uploads", async () => ({ docs: (await getDocuments(app)).rows }));
