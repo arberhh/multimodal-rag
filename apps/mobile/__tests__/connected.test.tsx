@@ -3,6 +3,8 @@ import Index from "~/app/index";
 
 // config.ts reads import.meta.env, which Jest can't parse.
 jest.mock("~/features/server/config", () => ({ serverUrl: "http://test-server" }));
+// one ships ESM that Jest can't load; the home screen only needs Link.
+jest.mock("one", () => ({ Link: ({ children }) => children }));
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
