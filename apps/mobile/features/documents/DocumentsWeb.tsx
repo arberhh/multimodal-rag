@@ -42,7 +42,7 @@ function renderDocument({ item }: ListRenderItemInfo<Document>) {
         <Text style={styles.muted}>{formatSize(item.size_bytes)}</Text>
       </View>
       <View style={styles.status}>
-        <View style={[styles.dot, dotStyle[item.status]]} />
+        <View style={[styles.dot, item.status === "ready" ? styles.dotReady : styles.dotPending]} />
         <Text>{statusLabel[item.status]}</Text>
       </View>
     </View>
@@ -66,6 +66,8 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   dot: { borderRadius: 5, height: 10, width: 10 },
+  dotPending: { backgroundColor: colors.pending },
+  dotReady: { backgroundColor: colors.connected },
   error: { color: colors.unreachable },
   muted: { color: colors.muted, fontSize: 13 },
   name: { fontSize: 16, fontWeight: "500" },
@@ -79,9 +81,4 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, gap: 2 },
   status: { alignItems: "center", flexDirection: "row", gap: 6 },
-});
-
-const dotStyle = StyleSheet.create({
-  processing: { backgroundColor: colors.pending },
-  ready: { backgroundColor: colors.connected },
 });
