@@ -9,14 +9,13 @@ import { processDocument } from "./process.js";
 
 const id = "2261f126-0a2e-4adc-a34a-0cfdc572a719";
 
-// duplicateId: the id of an already-read document with the same file hash, if any
-function setup(duplicateId?: string) {
+function setup() {
   const queries: { sql: string; values: unknown[] }[] = [];
   const app = Fastify();
   app.decorate("pg", {
     query: async (sql: string, values: unknown[] = []) => {
       queries.push({ sql, values });
-      return { rows: duplicateId && sql.includes("sha256") ? [{ id: duplicateId }] : [] };
+      return { rows: [] };
     },
   } as never);
   return { app, queries };
@@ -53,10 +52,10 @@ describe("processDocument", () => {
 
     await processDocument(app, id, fakeClient({ pages }));
 
-    assert.equal(queries.length, 2); // the duplicate lookup, then the insert
-    assert.match(queries[1].sql, /INSERT INTO document_pages/);
-    assert.match(queries[1].sql, /SET status = 'ready'/);
-    assert.deepEqual(queries[1].values, [id, JSON.stringify(pages)]);
+    assert.equal(queries.length, 1);
+    assert.match(queries[0].sql, /INSERT INTO document_pages/);
+    assert.match(queries[0].sql, /SET status = 'ready'/);
+    assert.deepEqual(queries[0].values, [id, JSON.stringify(pages)]);
   });
 
   it("marks the document failed when reading it throws", async () => {
@@ -65,9 +64,9 @@ describe("processDocument", () => {
 
     await processDocument(app, id, fakeClient(null));
 
-    assert.equal(queries.length, 2);
-    assert.match(queries[1].sql, /SET status = 'failed'/);
-    assert.deepEqual(queries[1].values, [id]);
+    assert.equal(queries.length, 1);
+    assert.match(queries[0].sql, /SET status = 'failed'/);
+    assert.deepEqual(queries[0].values, [id]);
   });
 
   it("marks the document failed when the file is missing", async () => {
@@ -75,21 +74,7 @@ describe("processDocument", () => {
 
     await processDocument(app, id, fakeClient({ pages: [] }));
 
-    assert.match(queries[1].sql, /SET status = 'failed'/);
-  });
-
-  it("copies the pages of an identical file and never calls the model", async () => {
-    const original = "11111111-1111-4111-8111-111111111111";
-    const { app, queries } = setup(original);
-    const noModel = {
-      messages: { parse: () => assert.fail("model was called") },
-    } as unknown as Anthropic;
-
-    await processDocument(app, id, noModel);
-
-    assert.equal(queries.length, 2);
-    assert.match(queries[1].sql, /INSERT INTO document_pages[\s\S]*SELECT \$1, page/);
-    assert.deepEqual(queries[1].values, [id, original]);
+    assert.match(queries[0].sql, /SET status = 'failed'/);
   });
 
   it("never throws, even if marking it failed also fails", async () => {

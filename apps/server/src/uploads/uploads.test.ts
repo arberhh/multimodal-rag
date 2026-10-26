@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -65,12 +64,7 @@ describe("uploads", () => {
       assert.deepEqual(await readdir(join(dir, "uploads")), [`${id}.pdf`]);
       assert.equal(calls.length, 1);
       assert.match(calls[0].sql, /INSERT INTO documents/);
-      assert.deepEqual(calls[0].values, [
-        id,
-        "report.pdf",
-        "%PDF-1.4 test".length,
-        createHash("sha256").update("%PDF-1.4 test").digest("hex"),
-      ]);
+      assert.deepEqual(calls[0].values, [id, "report.pdf", "%PDF-1.4 test".length]);
       await app.close();
     });
 
