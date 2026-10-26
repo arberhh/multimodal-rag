@@ -9,7 +9,8 @@
       "ignoreDependencies": ["@react-native-community/template"]
     },
     "apps/server": {
-      "project": ["src/**/*.ts"]
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["pino-pretty"]
     }
   }
 }

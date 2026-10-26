@@ -1,10 +1,11 @@
 import cors from "@fastify/cors";
-import Fastify from "fastify";
+import Fastify, { type FastifyServerOptions } from "fastify";
 import { db } from "./plugins/db.js";
+import { extract } from "./extract/index.js";
 import { uploads } from "./uploads/index.js";
 
 export async function buildApp(
-  options: { logger: boolean; databaseUrl?: string } = { logger: true },
+  options: { logger: FastifyServerOptions["logger"]; databaseUrl?: string } = { logger: true },
 ) {
   const app = Fastify({ logger: options.logger });
   await app.register(cors, { origin: true });
@@ -14,6 +15,7 @@ export async function buildApp(
 
   app.get("/health", async () => ({ status: "ok" }));
   await app.register(uploads);
+  await app.register(extract);
 
   return app;
 }
