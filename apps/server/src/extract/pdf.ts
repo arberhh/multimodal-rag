@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import type { FastifyBaseLogger } from "fastify";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 
@@ -26,11 +27,13 @@ export type PageContent = z.infer<typeof PageContent>;
 export async function extractPages(
   path: string,
   client: Anthropic = new Anthropic(),
+  log?: FastifyBaseLogger,
 ): Promise<PageContent[]> {
   const bytes = await readFile(path);
   if (bytes.length > MAX_PDF_BYTES) throw new Error("PDF is too large to read");
   const data = bytes.toString("base64");
 
+  const startedAt = Date.now();
   const response = await client.messages.parse({
     model: MODEL,
     max_tokens: 16000,
@@ -47,5 +50,20 @@ export async function extractPages(
   });
 
   if (!response.parsed_output) throw new Error("Claude did not return the pages");
-  return response.parsed_output.pages;
+
+  const pages = response.parsed_output.pages;
+  log?.info(
+    {
+      model: MODEL,
+      pdfBytes: bytes.length,
+      pages: pages.length,
+      tables: pages.reduce((n, p) => n + p.tables.length, 0),
+      figures: pages.reduce((n, p) => n + p.figures.length, 0),
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      seconds: Number(((Date.now() - startedAt) / 1000).toFixed(1)),
+    },
+    "Claude answered",
+  );
+  return pages;
 }

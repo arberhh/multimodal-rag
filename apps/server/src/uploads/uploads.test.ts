@@ -86,7 +86,7 @@ describe("uploads", () => {
     });
 
     it("never uses the client's filename as the stored path", async () => {
-      const { app } = setup(() => ({ rows: [] }));
+      const { app } = setup(({ values: [id] }) => ({ rows: [{ id, status: "processing" }] }));
       await app.register(uploads);
 
       await app.inject({ method: "POST", url: "/uploads", payload: pdf("../../evil.pdf") });

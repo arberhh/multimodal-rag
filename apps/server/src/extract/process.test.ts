@@ -22,7 +22,11 @@ function setup() {
 }
 
 const fakeClient = (parsed_output: unknown) =>
-  ({ messages: { parse: async () => ({ parsed_output }) } }) as unknown as Anthropic;
+  ({
+    messages: {
+      parse: async () => ({ parsed_output, usage: { input_tokens: 100, output_tokens: 50 } }),
+    },
+  }) as unknown as Anthropic;
 
 describe("processDocument", () => {
   const originalCwd = process.cwd();

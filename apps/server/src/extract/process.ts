@@ -5,8 +5,10 @@ import { extractPages } from "./pdf.js";
 // Reads an uploaded PDF, stores its pages and marks the document ready.
 // Never throws: a failure is logged and the document is marked failed.
 export async function processDocument(app: FastifyInstance, id: string, client?: Anthropic) {
+  const log = app.log.child({ doc: id });
   try {
-    const pages = await extractPages(`uploads/${id}.pdf`, client);
+    log.info("Started reading the document");
+    const pages = await extractPages(`uploads/${id}.pdf`, client, log);
 
     // one statement, so the pages and the status change together or not at all
     await app.pg.query(
@@ -18,13 +20,13 @@ export async function processDocument(app: FastifyInstance, id: string, client?:
        UPDATE documents SET status = 'ready' WHERE id = $1`,
       [id, JSON.stringify(pages)],
     );
-    app.log.info({ id, pages: pages.length }, "document processed");
+    log.info({ pages: pages.length }, "Pages saved, document is ready");
   } catch (err) {
-    app.log.error({ err, id }, "document processing failed");
+    log.error({ err }, "Reading the document failed, marking it failed");
     await app.pg
       .query("UPDATE documents SET status = 'failed' WHERE id = $1", [id])
       .catch((statusErr: unknown) =>
-        app.log.error({ err: statusErr, id }, "could not mark failed"),
+        log.error({ err: statusErr }, "Could not mark the document failed"),
       );
   }
 }
