@@ -1,25 +1,21 @@
 import type { FastifyPluginAsync } from "fastify";
-import { extractPages } from "./pdf.js";
 
 export const extract: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>(
     "/extract/:id",
-    // uuid only, so the id can't point outside the uploads folder
+    // uuid only, so the id can't be anything but a document id
     {
       schema: {
         params: { type: "object", properties: { id: { type: "string", format: "uuid" } } },
       },
     },
     async (req, reply) => {
-      const path = `uploads/${req.params.id}.pdf`;
-      try {
-        return { id: req.params.id, pages: await extractPages(path) };
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-          return reply.code(404).send({ error: "Document not found" });
-        }
-        throw err;
-      }
+      const { rows } = await app.pg.query(
+        "SELECT page, text, tables, figures FROM document_pages WHERE document_id = $1 ORDER BY page",
+        [req.params.id],
+      );
+      if (rows.length === 0) return reply.code(404).send({ error: "No pages for this document" });
+      return { id: req.params.id, pages: rows };
     },
   );
 };

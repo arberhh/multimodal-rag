@@ -52,6 +52,15 @@ describe("extractPages", () => {
     await assert.rejects(extractPages(path, client), /did not return/);
   });
 
+  it("refuses a PDF that is too large, before calling the model", async () => {
+    const big = join(dir, "big.pdf");
+    await writeFile(big, Buffer.alloc(21 * 1024 * 1024));
+    const { client, requests } = fakeClient({ pages: [] });
+
+    await assert.rejects(extractPages(big, client), /too large/);
+    assert.equal(requests.length, 0);
+  });
+
   it("throws ENOENT for a missing file, before calling the model", async () => {
     const { client, requests } = fakeClient({ pages: [] });
     await assert.rejects(extractPages(join(dir, "nope.pdf"), client), { code: "ENOENT" });

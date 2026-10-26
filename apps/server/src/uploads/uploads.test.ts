@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -64,8 +65,30 @@ describe("uploads", () => {
       assert.deepEqual(await readdir(join(dir, "uploads")), [`${id}.pdf`]);
       assert.equal(calls.length, 1);
       assert.match(calls[0].sql, /INSERT INTO documents/);
-      assert.deepEqual(calls[0].values, [id, "report.pdf", "%PDF-1.4 test".length]);
+      assert.deepEqual(calls[0].values, [
+        id,
+        "report.pdf",
+        "%PDF-1.4 test".length,
+        createHash("sha256").update("%PDF-1.4 test").digest("hex"),
+      ]);
       await app.close();
+    });
+
+    it("tells onUploaded the new id, but not when the insert fails", async () => {
+      const ids: string[] = [];
+      const ok = setup(({ values: [id] }) => ({ rows: [{ id }] }));
+      await ok.app.register(uploads, { onUploaded: (id) => ids.push(id) });
+      const res = await ok.app.inject({ method: "POST", url: "/uploads", payload: pdf() });
+      assert.deepEqual(ids, [res.json().doc.id]);
+      await ok.app.close();
+
+      const failing = setup(() => {
+        throw new Error("db down");
+      });
+      await failing.app.register(uploads, { onUploaded: (id) => ids.push(id) });
+      await failing.app.inject({ method: "POST", url: "/uploads", payload: pdf() });
+      assert.equal(ids.length, 1);
+      await failing.app.close();
     });
 
     it("never uses the client's filename as the stored path", async () => {

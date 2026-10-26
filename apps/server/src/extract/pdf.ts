@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 
 const MODEL = "claude-haiku-5-5";
+// the API takes 32 MB per request and base64 adds a third
+const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
 const PROMPT = `Read this PDF page by page. For every page return:
 - page: the page number, starting at 1
@@ -25,7 +27,9 @@ export async function extractPages(
   path: string,
   client: Anthropic = new Anthropic(),
 ): Promise<PageContent[]> {
-  const data = (await readFile(path)).toString("base64");
+  const bytes = await readFile(path);
+  if (bytes.length > MAX_PDF_BYTES) throw new Error("PDF is too large to read");
+  const data = bytes.toString("base64");
 
   const response = await client.messages.parse({
     model: MODEL,

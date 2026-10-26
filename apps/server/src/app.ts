@@ -2,6 +2,7 @@ import cors from "@fastify/cors";
 import Fastify, { type FastifyServerOptions } from "fastify";
 import { db } from "./plugins/db.js";
 import { extract } from "./extract/index.js";
+import { processDocument } from "./extract/process.js";
 import { uploads } from "./uploads/index.js";
 
 export async function buildApp(
@@ -14,7 +15,7 @@ export async function buildApp(
   if (options.databaseUrl) await app.register(db, { connectionString: options.databaseUrl });
 
   app.get("/health", async () => ({ status: "ok" }));
-  await app.register(uploads);
+  await app.register(uploads, { onUploaded: (id) => processDocument(app, id) });
   await app.register(extract);
 
   return app;
