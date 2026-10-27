@@ -11,5 +11,17 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
 
+  # Browse the tables at http://localhost:8082. Read-only, and only reachable from this machine.
+  pgweb:
+    image: sosedoff/pgweb
+    container_name: ragchat-pgweb
+    depends_on:
+      - db
+    environment:
+      PGWEB_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+    command: ["/usr/bin/pgweb", "--bind=0.0.0.0", "--readonly"]
+    ports:
+      - "127.0.0.1:8082:8081"
+
 volumes:
   pgdata:

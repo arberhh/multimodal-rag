@@ -68,8 +68,25 @@ describe("uploads", () => {
       await app.close();
     });
 
+    it("tells onUploaded the new id, but not when the insert fails", async () => {
+      const ids: string[] = [];
+      const ok = setup(({ values: [id] }) => ({ rows: [{ id }] }));
+      await ok.app.register(uploads, { onUploaded: (id) => ids.push(id) });
+      const res = await ok.app.inject({ method: "POST", url: "/uploads", payload: pdf() });
+      assert.deepEqual(ids, [res.json().doc.id]);
+      await ok.app.close();
+
+      const failing = setup(() => {
+        throw new Error("db down");
+      });
+      await failing.app.register(uploads, { onUploaded: (id) => ids.push(id) });
+      await failing.app.inject({ method: "POST", url: "/uploads", payload: pdf() });
+      assert.equal(ids.length, 1);
+      await failing.app.close();
+    });
+
     it("never uses the client's filename as the stored path", async () => {
-      const { app } = setup(() => ({ rows: [] }));
+      const { app } = setup(({ values: [id] }) => ({ rows: [{ id, status: "processing" }] }));
       await app.register(uploads);
 
       await app.inject({ method: "POST", url: "/uploads", payload: pdf("../../evil.pdf") });

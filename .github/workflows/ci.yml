@@ -7,8 +7,20 @@ on:
     branches: [main]
 
 jobs:
-  checks:
+  # three independent jobs that run side by side
+  verify:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: static
+            command: pnpm typecheck && pnpm lint && pnpm deadcode
+          - name: server tests
+            command: pnpm --filter @multimodal-rag/server test
+          - name: mobile tests
+            command: pnpm --filter @multimodal-rag/mobile test
     steps:
       - uses: actions/checkout@v4
 
@@ -21,14 +33,20 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Type check
-        run: pnpm typecheck
+      # compiling React Native is the slow part of the mobile tests, so keep Jest's cache between runs
+      - uses: actions/cache@v4
+        if: matrix.name == 'mobile tests'
+        with:
+          path: apps/mobile/.jest-cache
+          key: jest-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/mobile/jest.config.cjs') }}
+          restore-keys: jest-${{ runner.os }}-
 
-      - name: Lint
-        run: pnpm lint
+      - run: ${{ matrix.command }}
 
-      - name: Dead code
-        run: pnpm deadcode
-
-      - name: Test
-        run: pnpm test
+  # one stable name for the whole run
+  checks:
+    needs: verify
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.verify.result }}" = "success"

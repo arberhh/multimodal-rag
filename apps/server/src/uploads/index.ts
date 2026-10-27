@@ -22,7 +22,10 @@ async function getDocuments(app: FastifyInstance) {
   );
 }
 
-export const uploads: FastifyPluginAsync = async (app) => {
+export const uploads: FastifyPluginAsync<{ onUploaded?: (id: string) => void }> = async (
+  app,
+  { onUploaded },
+) => {
   // the default limit is Fastify's 1 MB body limit, too small for real PDFs
   await app.register(multipart, { limits: { fileSize: MAX_FILE_BYTES } });
   await mkdir("uploads", { recursive: true });
@@ -36,7 +39,9 @@ export const uploads: FastifyPluginAsync = async (app) => {
     const path = `uploads/${id}.pdf`;
     try {
       await pipeline(data.file, createWriteStream(path));
-      return { doc: await saveToDatabase(app, id, data.filename, (await stat(path)).size) };
+      const doc = await saveToDatabase(app, id, data.filename, (await stat(path)).size);
+      onUploaded?.(id); // e.g. start reading the PDF; the upload does not wait for it
+      return { doc };
     } catch (err) {
       await unlink(path).catch(() => {}); // too big or no row: don't keep a half file
       throw err;
