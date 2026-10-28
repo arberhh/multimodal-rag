@@ -8,12 +8,18 @@ const MODEL = "claude-haiku-5-5";
 // the API takes 32 MB per request and base64 adds a third
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
-const PROMPT = `Read this PDF page by page. For every page return:
-- page: the page number, starting at 1
-- text: all body text in reading order, without tables
-- tables: each table as a markdown table
-- figures: one description per chart or picture, saying what it shows, including key values or trends
-Use only what is on the page. Do not invent anything. Use empty lists when a page has no tables or figures.`;
+const PROMPT = `Transcribe this PDF for a search index. Copy the content word for word; do not summarise. Put each piece of content in one place only.
+
+Return one object per page, in order, even for a blank page:
+- page: position in the file (1 = first page), not the printed number
+- printed_page_label: the number printed on the page, or null
+- text: body text in reading order (one column at a time), as markdown with headings, lists, captions, footnotes and equations (LaTeX). Leave out running headers and footers. Keep numbers and units exactly as printed.
+- tables: every table, including tables shown as images. Each has title (or null), markdown (every row and column; repeat merged cell values), notes (footnotes or source, or null) and continued_from_page (or null).
+- figures: every chart, diagram, map, photo or screenshot that carries information. Each has type, title (or null), text_in_figure (all text inside it), data and description.
+  data is for charts only (otherwise null): a markdown table of the plotted values, one row per x value, slice or point and one column per series. Prefix estimated values with "~".
+  description is 1-2 sentences: the trend or comparison, or for a diagram its parts and how they connect.
+
+Use only what is on the page. Write [illegible] for anything unreadable. Use empty lists when a page has no tables or figures.`;
 
 const PageContent = z.object({
   page: z.number().int(),
