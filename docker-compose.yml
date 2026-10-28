@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:18
+    image: pgvector/pgvector:pg18
     container_name: ragchat-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
