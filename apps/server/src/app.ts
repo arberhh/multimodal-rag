@@ -3,6 +3,7 @@ import Fastify, { type FastifyServerOptions } from "fastify";
 import { db } from "./plugins/db.js";
 import { extract } from "./extract/index.js";
 import { processDocument } from "./extract/process.js";
+import { search } from "./search/index.js";
 import { uploads } from "./uploads/index.js";
 
 export async function buildApp(
@@ -17,6 +18,7 @@ export async function buildApp(
   app.get("/health", async () => ({ status: "ok" }));
   await app.register(uploads, { onUploaded: (id) => processDocument(app, id) });
   await app.register(extract);
+  await app.register(search);
 
   return app;
 }
