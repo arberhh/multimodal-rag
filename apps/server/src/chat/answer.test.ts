@@ -57,7 +57,8 @@ describe("answerQuestion", () => {
     assert.deepEqual(question, { type: "text", text: "And in Europe?" });
   });
 
-  it("streams each piece of text and returns the cited pages once, in page order", async () => {
+  // pages arrive best match first; the sources keep that order, whatever order they were cited in
+  it("streams each piece of text and returns each cited page once, best match first", async () => {
     const { client } = fakeClient(
       ["Europe made ", "$0.9 million", "."],
       [
