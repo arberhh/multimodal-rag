@@ -40,23 +40,19 @@ export async function answerQuestion(
   stream.on("text", onText);
   const message = await stream.finalMessage();
 
-  // search_result_index points into `pages`, in the order they were sent
-  const cited = new Set<number>();
-  let text = "";
-  for (const block of message.content) {
-    if (block.type !== "text") continue;
-    text += block.text;
-    for (const c of block.citations ?? []) {
-      if (c.type === "search_result_location") cited.add(c.search_result_index);
-    }
-  }
+  const texts = message.content.flatMap((b) => (b.type === "text" ? [b] : []));
+  // each citation says which page it used, by its position in `pages`
+  const cited = new Set(
+    texts
+      .flatMap((b) => b.citations ?? [])
+      .flatMap((c) => (c.type === "search_result_location" ? [c.search_result_index] : [])),
+  );
 
-  const sources = [...cited]
-    .sort((a, b) => a - b)
-    .map((i) => ({
-      documentId: pages[i].documentId,
-      fileName: pages[i].fileName,
-      page: pages[i].page,
-    }));
-  return { text, sources };
+  return {
+    text: texts.map((b) => b.text).join(""),
+    // the cited pages, each once, best match first
+    sources: pages
+      .filter((_, i) => cited.has(i))
+      .map(({ documentId, fileName, page }) => ({ documentId, fileName, page })),
+  };
 }
