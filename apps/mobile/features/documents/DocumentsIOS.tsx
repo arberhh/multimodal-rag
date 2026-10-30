@@ -4,7 +4,6 @@ import type { Document } from "./api";
 import { formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 
-// SwiftUI: a native inset-grouped List
 export function DocumentsIOS({ docs, uploading, error, addPdf }: DocumentsViewProps) {
   return (
     <One.iOS.List listStyle="insetGrouped" style={styles.list}>

@@ -5,7 +5,7 @@ import type { Document } from "./api";
 import { formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 
-// Jetpack Compose: Material 3 rows. `style` only goes on the root, nested nodes use composeStyle.
+// `style` only works on the root view; nested Compose views take composeStyle
 export function DocumentsAndroid({ docs, uploading, error, addPdf }: DocumentsViewProps) {
   const { Button, LazyColumn, Text } = One.Android;
 

@@ -10,7 +10,7 @@ describe("GET /health", () => {
 
   before(async () => {
     app = await buildApp({ logger: false });
-    // Same host the server binds to, so phones on the network can connect.
+    // bind the way index.ts does (0.0.0.0, for phones on the network), on any free port
     await app.listen({ port: 0, host: "0.0.0.0" });
     baseUrl = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
   });

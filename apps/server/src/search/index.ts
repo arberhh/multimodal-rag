@@ -12,7 +12,7 @@ const SEARCH_SQL = `
   ORDER BY p.embedding <=> $1::vector
   LIMIT $2`;
 
-// The pages closest in meaning to the question, best first. Used by /search and by the chat.
+// The pages closest in meaning to the question, best first.
 export async function findPages(
   app: FastifyInstance,
   question: string,
