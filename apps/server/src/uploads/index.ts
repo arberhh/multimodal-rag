@@ -26,7 +26,7 @@ export const uploads: FastifyPluginAsync<{ onUploaded?: (id: string) => void }> 
   app,
   { onUploaded },
 ) => {
-  // the default limit is Fastify's 1 MB body limit, too small for real PDFs
+  // without a limit, files are capped at Fastify's 1 MB body limit, too small for real PDFs
   await app.register(multipart, { limits: { fileSize: MAX_FILE_BYTES } });
   await mkdir("uploads", { recursive: true });
 

@@ -3,7 +3,7 @@ import type { FastifyPluginAsync } from "fastify";
 export const extract: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>(
     "/extract/:id",
-    // uuid only, so the id can't be anything but a document id
+    // a bad id gets a 400 here, instead of a 500 from Postgres rejecting it as a uuid
     {
       schema: {
         params: { type: "object", properties: { id: { type: "string", format: "uuid" } } },
