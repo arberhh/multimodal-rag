@@ -1,6 +1,6 @@
 import { Link } from "one";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors } from "~/features/theme";
+import { colors, sharedStyles } from "~/features/theme";
 import { serverUrl } from "~/features/server/config";
 import { type ServerStatus, useServerStatus } from "~/features/server/useServerStatus";
 
@@ -21,26 +21,27 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>RAG Chat</Text>
+      <Text style={sharedStyles.title}>RAG Chat</Text>
 
       <View style={styles.statusRow} testID="server-status">
-        <View style={[styles.dot, { backgroundColor: dotColor[status] }]} />
+        <View style={[sharedStyles.dot, { backgroundColor: dotColor[status] }]} />
         <Text style={styles.statusText}>{label[status]}</Text>
       </View>
       <Text style={styles.url}>{serverUrl}</Text>
 
       {status === "connected" && (
-        // asChild: on web a Link's own style loses its padding
+        // asChild: on web a Link's own style loses its padding. The child's style must be
+        // one object, because an array crashes on web
         <Link href="/documents" asChild>
-          <Pressable style={styles.button}>
-            <Text style={styles.buttonText}>My Documents</Text>
+          <Pressable style={sharedStyles.button}>
+            <Text style={sharedStyles.buttonText}>My Documents</Text>
           </Pressable>
         </Link>
       )}
 
       {status === "unreachable" && (
-        <Pressable onPress={retry} style={styles.button}>
-          <Text style={styles.buttonText}>Retry</Text>
+        <Pressable onPress={retry} style={sharedStyles.button}>
+          <Text style={sharedStyles.buttonText}>Retry</Text>
         </Pressable>
       )}
     </View>
@@ -48,14 +49,6 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  button: {
-    backgroundColor: colors.buttonBackground,
-    borderRadius: 8,
-    marginTop: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  buttonText: { color: colors.buttonText, fontWeight: "600" },
   container: {
     alignItems: "center",
     backgroundColor: colors.background,
@@ -65,9 +58,7 @@ const styles = StyleSheet.create({
     minHeight: "100%",
     padding: 24,
   },
-  dot: { borderRadius: 5, height: 10, width: 10 },
   statusRow: { alignItems: "center", flexDirection: "row", gap: 8 },
   statusText: { fontSize: 17 },
-  title: { fontSize: 28, fontWeight: "700" },
   url: { color: colors.muted, fontSize: 13 },
 });

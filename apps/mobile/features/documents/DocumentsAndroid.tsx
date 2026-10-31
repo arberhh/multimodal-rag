@@ -2,7 +2,7 @@ import { One } from "one";
 import { StyleSheet } from "react-native";
 import { colors } from "~/features/theme";
 import type { Document } from "./api";
-import { formatSize, statusLabel } from "./labels";
+import { addPdfLabel, emptyLabel, formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 
 // `style` only works on the root view; nested Compose views take composeStyle
@@ -18,7 +18,7 @@ export function DocumentsAndroid({
   return (
     <LazyColumn style={styles.list} contentPadding={listPadding}>
       <Button
-        label={uploading ? "Uploading…" : "Add PDF"}
+        label={addPdfLabel(uploading)}
         icon="add"
         disabled={uploading}
         onPress={addPdf}
@@ -26,7 +26,7 @@ export function DocumentsAndroid({
       />
 
       {error && <Text text={error} composeStyle={composeStyles.error} />}
-      {docs.length === 0 && <Text text="No documents yet." composeStyle={composeStyles.message} />}
+      {docs.length === 0 && <Text text={emptyLabel} composeStyle={composeStyles.message} />}
 
       {docs.map((doc) => renderDocument(doc, removePdf))}
     </LazyColumn>

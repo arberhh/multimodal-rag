@@ -1,7 +1,7 @@
 import { One } from "one";
 import { StyleSheet } from "react-native";
 import type { Document } from "./api";
-import { formatSize, statusLabel } from "./labels";
+import { addPdfLabel, emptyLabel, formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 
 export function DocumentsIOS({ docs, uploading, error, addPdf, removePdf }: DocumentsViewProps) {
@@ -9,7 +9,7 @@ export function DocumentsIOS({ docs, uploading, error, addPdf, removePdf }: Docu
     <One.iOS.List listStyle="insetGrouped" style={styles.list}>
       <One.iOS.Section footer={error ?? ""}>
         <One.iOS.Button
-          label={uploading ? "Uploading…" : "Add PDF"}
+          label={addPdfLabel(uploading)}
           systemImage="doc.badge.plus"
           onPress={addPdf}
           swiftStyle={uploading ? swiftStyles.disabled : swiftStyles.enabled}
@@ -17,7 +17,7 @@ export function DocumentsIOS({ docs, uploading, error, addPdf, removePdf }: Docu
       </One.iOS.Section>
 
       <One.iOS.Section title="Documents">
-        {docs.length === 0 && <One.iOS.Text text="No documents yet." />}
+        {docs.length === 0 && <One.iOS.Text text={emptyLabel} />}
         {docs.map((doc) => renderDocument(doc, removePdf))}
       </One.iOS.Section>
     </One.iOS.List>

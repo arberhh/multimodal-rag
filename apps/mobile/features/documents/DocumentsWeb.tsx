@@ -1,8 +1,8 @@
 import { Link } from "one";
 import { FlatList, type ListRenderItemInfo, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors } from "~/features/theme";
+import { colors, sharedStyles } from "~/features/theme";
 import type { Document, DocumentStatus } from "./api";
-import { formatSize, statusLabel } from "./labels";
+import { addPdfLabel, emptyLabel, formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 
 // web has no SwiftUI or Compose, so this one is plain React Native views
@@ -16,7 +16,7 @@ export function DocumentsWeb({ docs, uploading, error, addPdf, removePdf }: Docu
         <Text style={styles.muted}>{formatSize(item.size_bytes)}</Text>
       </View>
       <View style={styles.status}>
-        <View style={[styles.dot, { backgroundColor: dotColor[item.status] }]} />
+        <View style={[sharedStyles.dot, { backgroundColor: dotColor[item.status] }]} />
         <Text>{statusLabel[item.status]}</Text>
       </View>
       <Pressable onPress={() => removePdf(item)} accessibilityLabel={`Remove ${item.file_name}`}>
@@ -35,13 +35,13 @@ export function DocumentsWeb({ docs, uploading, error, addPdf, removePdf }: Docu
         </Link>
 
         <View style={styles.header}>
-          <Text style={styles.title}>My Documents</Text>
+          <Text style={sharedStyles.title}>My Documents</Text>
           <Pressable
             onPress={addPdf}
             disabled={uploading}
-            style={[styles.button, uploading && styles.buttonDisabled]}
+            style={[sharedStyles.button, uploading && styles.buttonDisabled]}
           >
-            <Text style={styles.buttonText}>{uploading ? "Uploading…" : "Add PDF"}</Text>
+            <Text style={sharedStyles.buttonText}>{addPdfLabel(uploading)}</Text>
           </Pressable>
         </View>
 
@@ -50,7 +50,7 @@ export function DocumentsWeb({ docs, uploading, error, addPdf, removePdf }: Docu
         <FlatList
           data={docs}
           keyExtractor={keyExtractor}
-          ListEmptyComponent={<Text style={styles.muted}>No documents yet.</Text>}
+          ListEmptyComponent={<Text style={styles.muted}>{emptyLabel}</Text>}
           renderItem={renderDocument}
         />
       </View>
@@ -70,17 +70,9 @@ const dotColor: Record<DocumentStatus, string> = {
 
 const styles = StyleSheet.create({
   back: { color: colors.muted, fontSize: 14 },
-  button: {
-    backgroundColor: colors.buttonBackground,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.buttonText, fontWeight: "600" },
   // a readable column, however wide the window is
   content: { gap: 16, maxWidth: 640, width: "100%" },
-  dot: { borderRadius: 5, height: 10, width: 10 },
   error: { color: colors.unreachable },
   header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   muted: { color: colors.muted, fontSize: 13 },
@@ -103,5 +95,4 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, gap: 2 },
   status: { alignItems: "center", flexDirection: "row", gap: 6 },
-  title: { fontSize: 28, fontWeight: "700" },
 });
