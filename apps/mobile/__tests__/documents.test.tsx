@@ -31,6 +31,14 @@ const doc = (status: string) => ({
   created_at: "2026-10-22T00:00:00Z",
 });
 
+const pickPdf = (name: string) =>
+  mockGetDocument.mockResolvedValue({
+    canceled: false,
+    assets: [{ uri: `file:///${name}`, name }],
+  });
+
+const pressAddPdf = () => act(async () => fireEvent.press(screen.getByText("Add PDF")));
+
 beforeEach(() => {
   mockFetch.mockReset();
   mockGetDocument.mockReset();
@@ -58,15 +66,12 @@ describe("documents screen", () => {
 
   it("uploads the picked PDF and shows it in the list", async () => {
     mockFetch.mockResolvedValueOnce(respond({ docs: [] }));
-    mockGetDocument.mockResolvedValue({
-      canceled: false,
-      assets: [{ uri: "file:///report.pdf", name: "report.pdf" }],
-    });
+    pickPdf("report.pdf");
     mockFetch.mockResolvedValueOnce(respond({ doc: doc("processing") }));
 
     await render(<Documents />);
     await screen.findByText("No documents yet.");
-    await act(async () => fireEvent.press(screen.getByText("Add PDF")));
+    await pressAddPdf();
 
     expect(await screen.findByText("report.pdf")).toBeOnTheScreen();
     expect(screen.getByText("Preparing…")).toBeOnTheScreen();
@@ -85,22 +90,19 @@ describe("documents screen", () => {
 
     await render(<Documents />);
     await screen.findByText("No documents yet.");
-    await act(async () => fireEvent.press(screen.getByText("Add PDF")));
+    await pressAddPdf();
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it("shows an error when the PDF is too big", async () => {
     mockFetch.mockResolvedValueOnce(respond({ docs: [] }));
-    mockGetDocument.mockResolvedValue({
-      canceled: false,
-      assets: [{ uri: "file:///big.pdf", name: "big.pdf" }],
-    });
+    pickPdf("big.pdf");
     mockFetch.mockResolvedValueOnce(respond({}, false, 413));
 
     await render(<Documents />);
     await screen.findByText("No documents yet.");
-    await act(async () => fireEvent.press(screen.getByText("Add PDF")));
+    await pressAddPdf();
 
     expect(await screen.findByText("That PDF is too big")).toBeOnTheScreen();
   });
@@ -153,16 +155,13 @@ describe("while a document is being prepared", () => {
 
   it("keeps a document uploaded while the answer was on its way", async () => {
     mockFetch.mockResolvedValueOnce(respond({ docs: [doc("processing")] }));
-    mockGetDocument.mockResolvedValue({
-      canceled: false,
-      assets: [{ uri: "file:///new.pdf", name: "new.pdf" }],
-    });
+    pickPdf("new.pdf");
     mockFetch.mockResolvedValueOnce(
       respond({ doc: { ...doc("processing"), id: "2", file_name: "new.pdf" } }),
     );
     await render(<Documents />);
     await screen.findByText("report.pdf");
-    await act(async () => fireEvent.press(screen.getByText("Add PDF")));
+    await pressAddPdf();
     await screen.findByText("new.pdf");
 
     // this list was read before the upload, so it doesn't have new.pdf
