@@ -1,5 +1,6 @@
 import cors from "@fastify/cors";
 import Fastify, { type FastifyServerOptions } from "fastify";
+import { chat } from "./chat/index.js";
 import { db } from "./plugins/db.js";
 import { extract } from "./extract/index.js";
 import { processDocument } from "./extract/process.js";
@@ -19,6 +20,7 @@ export async function buildApp(
   await app.register(uploads, { onUploaded: (id) => processDocument(app, id) });
   await app.register(extract);
   await app.register(search);
+  await app.register(chat);
 
   return app;
 }

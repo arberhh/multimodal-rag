@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { pageContent } from "./content.js";
 import { type Embed, embedTexts } from "./embed.js";
 
@@ -11,6 +11,29 @@ const SEARCH_SQL = `
   WHERE p.embedding IS NOT NULL AND ($3::uuid IS NULL OR p.document_id = $3::uuid)
   ORDER BY p.embedding <=> $1::vector
   LIMIT $2`;
+
+// The pages closest in meaning to the question, best first. Used by /search and by the chat.
+export async function findPages(
+  app: FastifyInstance,
+  question: string,
+  { limit = 5, document }: { limit?: number; document?: string },
+  embed: Embed = embedTexts,
+) {
+  const { vectors } = await embed([question], "query");
+  const { rows } = await app.pg.query(SEARCH_SQL, [
+    JSON.stringify(vectors[0]),
+    limit,
+    document ?? null,
+  ]);
+
+  return rows.map((r) => ({
+    documentId: r.document_id as string,
+    fileName: r.file_name as string,
+    page: r.page as number,
+    score: Number(r.score),
+    content: pageContent(r),
+  }));
+}
 
 export const search: FastifyPluginAsync<{ embed?: Embed }> = async (
   app,
@@ -33,23 +56,7 @@ export const search: FastifyPluginAsync<{ embed?: Embed }> = async (
     },
     async (req) => {
       const { q, limit, document } = req.query;
-      const { vectors } = await embed([q], "query");
-
-      const { rows } = await app.pg.query(SEARCH_SQL, [
-        JSON.stringify(vectors[0]),
-        limit,
-        document ?? null,
-      ]);
-
-      return {
-        results: rows.map((r) => ({
-          documentId: r.document_id,
-          fileName: r.file_name,
-          page: r.page,
-          score: Number(r.score),
-          content: pageContent(r),
-        })),
-      };
+      return { results: await findPages(app, q, { limit, document }, embed) };
     },
   );
 };
