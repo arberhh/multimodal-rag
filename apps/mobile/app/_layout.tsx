@@ -21,6 +21,8 @@ export default function Layout() {
           <title>RAG Chat</title>
           <meta name="description" content="Chat with your PDFs." />
           <link rel="icon" href="/favicon.svg" />
+          {/* screens use minHeight: "100%", which needs a parent with a height */}
+          <style>{"html, body { height: 100%; }"}</style>
         </head>
 
         <Slot />

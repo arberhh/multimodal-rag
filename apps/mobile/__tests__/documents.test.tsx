@@ -7,6 +7,7 @@ jest.mock("~/features/server/config", () => ({ serverUrl: "http://test-server" }
 // SwiftUI and Compose views only render in native builds, so these tests use the web view.
 const mockGetDocument = jest.fn();
 jest.mock("one", () => ({
+  Link: () => null,
   One: {
     platform: "web",
     DocumentPicker: { getDocument: (...args) => mockGetDocument(...args) },

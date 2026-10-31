@@ -30,8 +30,11 @@ export default function Index() {
       <Text style={styles.url}>{serverUrl}</Text>
 
       {status === "connected" && (
-        <Link href="/documents" style={styles.button}>
-          <Text style={styles.buttonText}>My Documents</Text>
+        // asChild: on web a Link's own style loses its padding
+        <Link href="/documents" asChild>
+          <Pressable style={styles.button}>
+            <Text style={styles.buttonText}>My Documents</Text>
+          </Pressable>
         </Link>
       )}
 
