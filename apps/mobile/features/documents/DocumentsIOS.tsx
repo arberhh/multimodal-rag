@@ -4,7 +4,7 @@ import type { Document } from "./api";
 import { formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 
-export function DocumentsIOS({ docs, uploading, error, addPdf }: DocumentsViewProps) {
+export function DocumentsIOS({ docs, uploading, error, addPdf, removePdf }: DocumentsViewProps) {
   return (
     <One.iOS.List listStyle="insetGrouped" style={styles.list}>
       <One.iOS.Section footer={error ?? ""}>
@@ -18,21 +18,31 @@ export function DocumentsIOS({ docs, uploading, error, addPdf }: DocumentsViewPr
 
       <One.iOS.Section title="Documents">
         {docs.length === 0 && <One.iOS.Text text="No documents yet." />}
-        {docs.map(renderDocument)}
+        {docs.map((doc) => renderDocument(doc, removePdf))}
       </One.iOS.Section>
     </One.iOS.List>
   );
 }
 
 // LabeledContent takes a value or children, not both, so the size goes in the children
-function renderDocument(doc: Document) {
+function renderDocument(doc: Document, removePdf: DocumentsViewProps["removePdf"]) {
   return (
-    <One.iOS.LabeledContent key={doc.id} label={doc.file_name}>
-      <One.iOS.HStack spacing={6}>
-        {doc.status !== "ready" && <One.iOS.ProgressView />}
-        <One.iOS.Text text={`${formatSize(doc.size_bytes)} · ${statusLabel[doc.status]}`} />
-      </One.iOS.HStack>
-    </One.iOS.LabeledContent>
+    <One.iOS.SwipeActions key={doc.id}>
+      <One.iOS.LabeledContent label={doc.file_name}>
+        <One.iOS.HStack spacing={6}>
+          {doc.status === "processing" && <One.iOS.ProgressView />}
+          <One.iOS.Text text={`${formatSize(doc.size_bytes)} · ${statusLabel[doc.status]}`} />
+        </One.iOS.HStack>
+      </One.iOS.LabeledContent>
+      <One.iOS.SwipeActions.Actions edge="trailing" allowsFullSwipe={false}>
+        <One.iOS.Button
+          label="Remove"
+          systemImage="trash"
+          buttonRole="destructive"
+          onPress={() => removePdf(doc)}
+        />
+      </One.iOS.SwipeActions.Actions>
+    </One.iOS.SwipeActions>
   );
 }
 
