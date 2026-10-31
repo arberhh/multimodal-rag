@@ -31,7 +31,7 @@ export default function Index() {
 
       {status === "connected" && (
         <Link href="/documents" style={styles.button}>
-          <Text style={styles.buttonText}>Your PDFs</Text>
+          <Text style={styles.buttonText}>My Documents</Text>
         </Link>
       )}
 

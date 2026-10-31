@@ -28,5 +28,9 @@ export default function Layout() {
     );
   }
 
-  return <Stack />;
+  return (
+    <Stack>
+      <Stack.Screen name="documents" options={{ title: "My Documents" }} />
+    </Stack>
+  );
 }
