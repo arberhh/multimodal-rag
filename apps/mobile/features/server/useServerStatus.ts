@@ -11,14 +11,19 @@ export function useServerStatus() {
 
   useEffect(() => {
     let current = true;
-    fetch(`${serverUrl}/health`, { signal: AbortSignal.timeout(TIMEOUT_MS) })
-      .then(async (res) =>
-        (await res.json()).status === "ok" && res.ok ? "connected" : "unreachable",
-      )
-      .catch(() => "unreachable" as const)
-      .then((next) => {
-        if (current) setStatus(next);
-      });
+    const check = async () => {
+      let next: ServerStatus = "unreachable";
+      try {
+        const res = await fetch(`${serverUrl}/health`, {
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+        if (res.ok && (await res.json()).status === "ok") next = "connected";
+      } catch {
+        // no answer, or not JSON: it stays unreachable
+      }
+      if (current) setStatus(next);
+    };
+    check();
     return () => {
       current = false;
     };

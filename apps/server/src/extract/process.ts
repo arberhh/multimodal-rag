@@ -43,10 +43,10 @@ export async function processDocument(
     log.info({ pages: pages.length, embeddingTokens: tokens }, "Pages saved, document is ready");
   } catch (err) {
     log.error({ err }, "Reading the document failed, marking it failed");
-    await app.pg
-      .query("UPDATE documents SET status = 'failed' WHERE id = $1", [id])
-      .catch((statusErr: unknown) =>
-        log.error({ err: statusErr }, "Could not mark the document failed"),
-      );
+    try {
+      await app.pg.query("UPDATE documents SET status = 'failed' WHERE id = $1", [id]);
+    } catch (statusErr) {
+      log.error({ err: statusErr }, "Could not mark the document failed");
+    }
   }
 }
