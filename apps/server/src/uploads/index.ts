@@ -7,6 +7,14 @@ import { pipeline } from "node:stream/promises";
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
 
+async function removeFile(path: string) {
+  try {
+    await unlink(path);
+  } catch {
+    // already gone, which is what we wanted
+  }
+}
+
 async function saveToDatabase(app: FastifyInstance, id: string, fileName: string, size: number) {
   const { rows } = await app.pg.query(
     `INSERT INTO documents (id, file_name, size_bytes) VALUES ($1, $2, $3)
@@ -43,10 +51,28 @@ export const uploads: FastifyPluginAsync<{ onUploaded?: (id: string) => void }> 
       onUploaded?.(id); // e.g. start reading the PDF; the upload does not wait for it
       return { doc };
     } catch (err) {
-      await unlink(path).catch(() => {}); // too big or no row: don't keep a half file
+      await removeFile(path); // too big or no row: don't keep a half file
       throw err;
     }
   });
 
   app.get("/uploads", async () => ({ docs: (await getDocuments(app)).rows }));
+
+  app.delete<{ Params: { id: string } }>(
+    "/uploads/:id",
+    {
+      schema: {
+        params: { type: "object", properties: { id: { type: "string", format: "uuid" } } },
+      },
+    },
+    async (req, reply) => {
+      const { id } = req.params;
+      // the document's pages go with it (ON DELETE CASCADE)
+      const { rowCount } = await app.pg.query("DELETE FROM documents WHERE id = $1", [id]);
+      if (rowCount === 0) return reply.code(404).send({ error: "Document not found" });
+
+      await removeFile(`uploads/${id}.pdf`); // the row is gone, so a missing file is fine
+      return reply.code(204).send();
+    },
+  );
 };

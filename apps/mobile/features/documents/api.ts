@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import { serverUrl } from "~/features/server/config";
 
-export type DocumentStatus = "processing" | "ready";
+export type DocumentStatus = "processing" | "ready" | "failed";
 
 export type Document = {
   id: string;
@@ -34,4 +34,9 @@ export async function uploadPdf(pdf: PickedFile): Promise<Document> {
   if (res.status === 413) throw new Error("That PDF is too big");
   if (!res.ok) throw new Error(`Upload failed (${res.status})`);
   return (await res.json()).doc;
+}
+
+export async function deleteDocument(id: string): Promise<void> {
+  const res = await fetch(`${serverUrl}/uploads/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Couldn't remove the document (${res.status})`);
 }

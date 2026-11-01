@@ -1,6 +1,21 @@
 import { One } from "one";
 import { useEffect, useState } from "react";
-import { type Document, listDocuments, uploadPdf } from "./api";
+import { Alert, Platform } from "react-native";
+import { deleteDocument, type Document, listDocuments, uploadPdf } from "./api";
+
+const POLL_MS = 3000;
+
+// Alert does nothing on web, so the browser asks instead
+function confirmRemove(name: string, onConfirm: () => void) {
+  if (Platform.OS === "web") {
+    if (window.confirm(`Remove ${name}?`)) onConfirm();
+    return;
+  }
+  Alert.alert(`Remove ${name}?`, "This can't be undone.", [
+    { text: "Cancel", style: "cancel" },
+    { text: "Remove", style: "destructive", onPress: onConfirm },
+  ]);
+}
 
 export function useDocuments() {
   const [docs, setDocs] = useState<Document[]>([]);
@@ -8,8 +23,37 @@ export function useDocuments() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    listDocuments().then(setDocs, (err: Error) => setError(err.message));
+    const load = async () => {
+      try {
+        setDocs(await listDocuments());
+      } catch (err) {
+        setError((err as Error).message);
+      }
+    };
+    load();
   }, []);
+
+  const preparing = docs.some((doc) => doc.status === "processing");
+
+  // The server reads a PDF in the background and can't tell the app when it's done, so ask again
+  // while anything is preparing. Only update documents already on screen: a response sent before
+  // an upload or removal must not undo it.
+  // Left for later: each poll fetches every document, not just one user's (172 KB at 1,000
+  // documents). When that hurts, ask only for the preparing ones, e.g. ?status=processing.
+  useEffect(() => {
+    if (!preparing) return;
+    const poll = async () => {
+      try {
+        const latest = await listDocuments();
+        const byId = new Map(latest.map((doc) => [doc.id, doc]));
+        setDocs((current) => current.map((doc) => byId.get(doc.id) ?? doc));
+      } catch {
+        // the next poll tries again
+      }
+    };
+    const timer = setInterval(poll, POLL_MS);
+    return () => clearInterval(timer);
+  }, [preparing]);
 
   const addPdf = async () => {
     const picked = await One.DocumentPicker.getDocument({ type: "application/pdf" });
@@ -27,7 +71,19 @@ export function useDocuments() {
     }
   };
 
-  return { docs, uploading, error, addPdf };
+  const removePdf = (doc: Document) => {
+    confirmRemove(doc.file_name, async () => {
+      setError(null);
+      try {
+        await deleteDocument(doc.id);
+        setDocs((current) => current.filter((d) => d.id !== doc.id));
+      } catch (err) {
+        setError((err as Error).message);
+      }
+    });
+  };
+
+  return { docs, uploading, error, addPdf, removePdf };
 }
 
 export type DocumentsViewProps = ReturnType<typeof useDocuments>;
