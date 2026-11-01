@@ -1,3 +1,3 @@
 {
-  "ignorePatterns": ["dist/*", "android/*", "ios/*", ".one/*", "pnpm-lock.yaml"]
+  "ignorePatterns": ["dist/*", "android/*", "ios/*", ".one/*", "pnpm-lock.yaml", "**/routes.d.ts"]
 }
