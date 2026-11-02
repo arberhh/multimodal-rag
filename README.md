@@ -6,6 +6,7 @@ pnpm monorepo: `apps/mobile` ([One](https://onestack.dev) / React Native) and `a
 pnpm install
 pnpm dev:server          # http://localhost:3000/health
 pnpm dev:mobile          # web + dev server
+pnpm run:web             # same, and opens http://localhost:8081
 pnpm --filter @multimodal-rag/mobile prebuild:native
 pnpm ios                 # or: pnpm android
 ```

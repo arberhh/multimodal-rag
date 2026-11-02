@@ -1,14 +1,10 @@
 import type { FastifyPluginAsync } from "fastify";
+import { idParams } from "../schemas.js";
 
 export const extract: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>(
     "/extract/:id",
-    // a bad id gets a 400 here, instead of a 500 from Postgres rejecting it as a uuid
-    {
-      schema: {
-        params: { type: "object", properties: { id: { type: "string", format: "uuid" } } },
-      },
-    },
+    { schema: { params: idParams } },
     async (req, reply) => {
       const { rows } = await app.pg.query(
         "SELECT page, text, tables, figures FROM document_pages WHERE document_id = $1 ORDER BY page",

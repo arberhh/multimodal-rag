@@ -1,14 +1,9 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
+import { idParams } from "../schemas.js";
 import { type Embed, embedTexts } from "../search/embed.js";
 import { findPages } from "../search/index.js";
 import { answerQuestion } from "./answer.js";
-
-const idParams = {
-  type: "object",
-  required: ["id"],
-  properties: { id: { type: "string", format: "uuid" } },
-} as const;
 
 // one server-sent event: the client reads `event` to know what `data` holds
 function send(reply: FastifyReply, event: string, data: unknown) {

@@ -5,7 +5,8 @@
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
-    { "key": "conversationId", "value": "" }
+    { "key": "conversationId", "value": "" },
+    { "key": "documentId", "value": "" }
   ],
   "item": [
     {
@@ -22,6 +23,14 @@
       "item": [
         {
           "name": "Upload PDF",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.collectionVariables.set('documentId', pm.response.json().doc.id);"]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "url": "{{baseUrl}}/uploads",
@@ -30,6 +39,14 @@
               "formdata": [{ "key": "file", "type": "file", "src": [] }]
             }
           }
+        },
+        {
+          "name": "List documents",
+          "request": { "method": "GET", "url": "{{baseUrl}}/uploads" }
+        },
+        {
+          "name": "Remove document",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/uploads/{{documentId}}" }
         }
       ]
     },

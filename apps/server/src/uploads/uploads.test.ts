@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
@@ -144,6 +144,57 @@ describe("uploads", () => {
       assert.equal(res.statusCode, 200);
       assert.deepEqual(res.json(), { docs: rows });
       assert.match(calls[0].sql, /FROM documents ORDER BY created_at DESC/);
+      await app.close();
+    });
+  });
+
+  describe("DELETE /uploads/:id", () => {
+    const id = "2261f126-0a2e-4adc-a34a-0cfdc572a719";
+
+    it("removes the documents row and the file", async () => {
+      const { app, calls } = setup(() => ({ rowCount: 1 }));
+      await app.register(uploads);
+      await writeFile(join(dir, "uploads", `${id}.pdf`), "%PDF-1.4 test");
+
+      const res = await app.inject({ method: "DELETE", url: `/uploads/${id}` });
+
+      assert.equal(res.statusCode, 204);
+      assert.match(calls[0].sql, /DELETE FROM documents/);
+      assert.deepEqual(calls[0].values, [id]);
+      assert.deepEqual(await readdir(join(dir, "uploads")), []);
+      await app.close();
+    });
+
+    it("still succeeds when the file is already gone", async () => {
+      const { app } = setup(() => ({ rowCount: 1 }));
+      await app.register(uploads);
+
+      const res = await app.inject({ method: "DELETE", url: `/uploads/${id}` });
+
+      assert.equal(res.statusCode, 204);
+      await app.close();
+    });
+
+    it("returns 404 for an unknown document and keeps other files", async () => {
+      const { app } = setup(() => ({ rowCount: 0 }));
+      await app.register(uploads);
+      await writeFile(join(dir, "uploads", `${id}.pdf`), "%PDF-1.4 test");
+
+      const res = await app.inject({ method: "DELETE", url: `/uploads/${id}` });
+
+      assert.equal(res.statusCode, 404);
+      assert.deepEqual(await readdir(join(dir, "uploads")), [`${id}.pdf`]);
+      await app.close();
+    });
+
+    it("returns 400 for an id that isn't a uuid, so it can't reach a file path", async () => {
+      const { app, calls } = setup(() => ({ rowCount: 1 }));
+      await app.register(uploads);
+
+      const res = await app.inject({ method: "DELETE", url: "/uploads/..%2F..%2Fevil" });
+
+      assert.equal(res.statusCode, 400);
+      assert.equal(calls.length, 0);
       await app.close();
     });
   });
