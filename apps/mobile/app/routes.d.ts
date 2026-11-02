@@ -9,6 +9,7 @@ declare module 'one' {
       StaticRoutes:
         | `/`
         | `/_sitemap`
+        | `/chat`
         | `/documents`
       DynamicRoutes: never
       DynamicRouteTemplate: never
