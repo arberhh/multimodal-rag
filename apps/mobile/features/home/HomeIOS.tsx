@@ -1,11 +1,21 @@
 import { One } from "one";
 import { StyleSheet } from "react-native";
 import { colors } from "~/features/theme";
-import { destinations, howItWorks, intro, reachLabel, steps } from "./content";
+import { whenLabel } from "~/features/conversations/labels";
+import {
+  destinations,
+  howItWorks,
+  intro,
+  nameLabel,
+  noNameLabel,
+  reachLabel,
+  recentTitle,
+  steps,
+} from "./content";
 import type { HomeViewProps } from "./types";
 
-export function HomeIOS({ status, open }: HomeViewProps) {
-  const { Button, HStack, Image, List, Section, Spacer, Text, VStack } = One.iOS;
+export function HomeIOS({ status, open, recent, openChat, name, rename }: HomeViewProps) {
+  const { Button, HStack, Image, LabeledContent, List, Section, Spacer, Text, VStack } = One.iOS;
   const ready = status === "connected";
 
   return (
@@ -37,6 +47,31 @@ export function HomeIOS({ status, open }: HomeViewProps) {
           </Button>
         ))}
       </Section>
+
+      {ready && recent.length > 0 && (
+        <Section title={recentTitle}>
+          {recent.map((conversation) => (
+            <Button key={conversation.id} onPress={() => openChat(conversation.id)}>
+              <HStack spacing={10}>
+                <Text text={conversation.title} swiftStyle={swiftStyles.chatTitle} />
+                <Spacer />
+                <Text
+                  text={whenLabel(conversation.updated_at)}
+                  swiftStyle={swiftStyles.secondary}
+                />
+              </HStack>
+            </Button>
+          ))}
+        </Section>
+      )}
+
+      {ready && rename && (
+        <Section>
+          <Button onPress={rename}>
+            <LabeledContent label={nameLabel} value={name ?? noNameLabel} />
+          </Button>
+        </Section>
+      )}
 
       <Section title={howItWorks}>
         {steps.map((step) => (
@@ -76,6 +111,7 @@ const swiftStyles = {
   rowIcon: { fontSize: 22, width: 30, foregroundStyle: colors.accent },
   stepIcon: { fontSize: 20, width: 30, foregroundStyle: colors.muted },
   rowTitle: { textStyle: "body", foregroundStyle: colors.text },
+  chatTitle: { textStyle: "body", foregroundStyle: colors.text, lineLimitWithOptionalInt: 1 },
   secondary: { textStyle: "subheadline", foregroundStyle: colors.muted },
   chevron: {
     textStyle: "footnote",

@@ -1,5 +1,6 @@
 import { One } from "one";
 import { useEffect, useReducer, useRef } from "react";
+import { getMessages, type Message } from "~/features/conversations/api";
 import { askQuestion, createConversation, type Source } from "./api";
 
 export type Turn = {
@@ -14,6 +15,7 @@ type ChatState = {
   turns: Turn[];
   current: Turn | null; // the turn being answered, which joins the others when it ends
   error: string | null;
+  opening: boolean; // a saved chat's messages are still loading
 };
 
 type ChatAction =
@@ -23,9 +25,28 @@ type ChatAction =
   | { type: "stopped" }
   | { type: "failed"; error: string }
   | { type: "retried" }
-  | { type: "cleared" };
+  | { type: "cleared" }
+  | { type: "opened"; turns: Turn[] }
+  | { type: "openFailed"; error: string };
 
-const empty: ChatState = { turns: [], current: null, error: null };
+const empty: ChatState = { turns: [], current: null, error: null, opening: false };
+
+// A saved chat's messages as turns: each question, with the answer that followed it. A question
+// that never got an answer keeps an empty one
+export function toTurns(messages: Message[]): Turn[] {
+  const turns: Turn[] = [];
+  for (const message of messages) {
+    const last = turns.at(-1);
+    if (message.role === "user") turns.push({ question: message.content, answer: "" });
+    else if (last)
+      turns[turns.length - 1] = {
+        ...last,
+        answer: message.content,
+        sources: message.sources ?? [],
+      };
+  }
+  return turns;
+}
 
 function reducer(state: ChatState, action: ChatAction): ChatState {
   if (action.type === "asked") {
@@ -36,6 +57,8 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
     };
   }
   if (action.type === "cleared") return empty;
+  if (action.type === "opened") return { ...empty, turns: action.turns };
+  if (action.type === "openFailed") return { ...empty, error: action.error };
   if (action.type === "retried") {
     // the failed question goes, and is asked again
     return { ...state, error: null, turns: state.turns.slice(0, -1) };
@@ -61,6 +84,7 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
     case "failed":
       // a failed question stays too, with whatever was written
       return {
+        ...state,
         error: action.error,
         current: null,
         turns: [...turns, { ...current, failed: true }],
@@ -68,18 +92,42 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
   }
 }
 
-export function useChat() {
-  const [{ turns, current, error }, dispatch] = useReducer(reducer, empty);
-  const conversationId = useRef<string | null>(null);
+// openId: a saved chat to carry on. Without one, the chat starts empty
+export function useChat(openId?: string) {
+  const [{ turns, current, error, opening }, dispatch] = useReducer(reducer, {
+    ...empty,
+    opening: openId !== undefined,
+  });
+  const conversationId = useRef<string | null>(openId ?? null);
   // the question being answered: set at once, so a second tap before the next render can't send
   // another, and aborted to stop it, or when the screen closes
   const asking = useRef<AbortController | null>(null);
 
   useEffect(() => () => asking.current?.abort(), []);
 
+  useEffect(() => {
+    if (!openId) return;
+    let current = true;
+    // still this chat: not closed, and New chat wasn't tapped while it loaded
+    const wanted = () => current && conversationId.current === openId;
+    const open = async () => {
+      try {
+        const turns = toTurns(await getMessages(openId));
+        if (wanted()) dispatch({ type: "opened", turns });
+      } catch (err) {
+        const error = err instanceof Error ? err.message : "Couldn't open the chat";
+        if (wanted()) dispatch({ type: "openFailed", error });
+      }
+    };
+    open();
+    return () => {
+      current = false;
+    };
+  }, [openId]);
+
   const send = async (draft: string) => {
     const question = draft.trim();
-    if (!question || asking.current) return;
+    if (!question || asking.current || opening) return;
 
     const controller = new AbortController();
     asking.current = controller;
@@ -115,8 +163,9 @@ export function useChat() {
   const stop = () => asking.current?.abort();
 
   const last = turns.at(-1);
+  const canRetry = Boolean(last?.failed) && !current;
   const retry = () => {
-    if (!last?.failed || current) return;
+    if (!canRetry || !last) return;
     dispatch({ type: "retried" });
     send(last.question);
   };
@@ -132,7 +181,9 @@ export function useChat() {
   return {
     turns: current ? [...turns, current] : turns,
     loading: current !== null,
+    opening,
     error,
+    canRetry,
     send,
     stop,
     retry,

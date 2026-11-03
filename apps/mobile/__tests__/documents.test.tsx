@@ -10,6 +10,7 @@ jest.mock("one", () => ({
   Link: () => null,
   One: {
     platform: "web",
+    Storage: { getItem: () => "test-device", setItem() {} },
     DocumentPicker: { getDocument: (...args) => mockGetDocument(...args) },
   },
 }));
@@ -211,7 +212,10 @@ describe("removing a document", () => {
 
     await confirm();
 
-    expect(mockFetch).toHaveBeenCalledWith("http://test-server/uploads/1", { method: "DELETE" });
+    expect(mockFetch).toHaveBeenCalledWith("http://test-server/uploads/1", {
+      method: "DELETE",
+      headers: { "X-Device-Id": "test-device" },
+    });
     expect(await screen.findByText("No documents yet.")).toBeOnTheScreen();
   });
 

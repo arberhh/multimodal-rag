@@ -16,6 +16,13 @@ export const destinations = [
     icon: "forum",
   },
   {
+    href: "/conversations",
+    title: "All chats",
+    detail: "Carry on a past conversation",
+    systemImage: "clock.arrow.circlepath",
+    icon: "history",
+  },
+  {
     href: "/documents",
     title: "My Documents",
     detail: "Add and remove PDFs",
@@ -23,8 +30,6 @@ export const destinations = [
     icon: "description",
   },
 ] as const;
-
-export type Destination = (typeof destinations)[number]["href"];
 
 export const steps = [
   {
@@ -55,3 +60,9 @@ export const reachLabel: Record<ServerStatus, string> = {
   connected: "",
   unreachable: "Can't reach the server. Check that it's running, then tap the status to try again.",
 };
+
+export const recentTitle = "Recent chats";
+export const nameLabel = "Your name";
+export const noNameLabel = "Not set";
+// how many chats the home screen shows
+export const RECENT_CHATS = 5;

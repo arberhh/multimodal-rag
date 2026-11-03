@@ -1,11 +1,12 @@
 import { One } from "one";
 import { StyleSheet } from "react-native";
 import { colors } from "~/features/theme";
-import { destinations, howItWorks, intro, reachLabel, steps } from "./content";
+import { whenLabel } from "~/features/conversations/labels";
+import { destinations, howItWorks, intro, reachLabel, recentTitle, steps } from "./content";
 import type { HomeViewProps } from "./types";
 
 // `style` only works on the root view; nested Compose views take composeStyle
-export function HomeAndroid({ status, open }: HomeViewProps) {
+export function HomeAndroid({ status, open, recent, openChat }: HomeViewProps) {
   const { Icon, LazyColumn, ListItem, Surface, Text } = One.Android;
   const ready = status === "connected";
 
@@ -38,6 +39,23 @@ export function HomeAndroid({ status, open }: HomeViewProps) {
         </Surface>
       ))}
       {!ready && <Text text={reachLabel[status]} composeStyle={composeStyles.warning} />}
+
+      {ready && recent.length > 0 && (
+        <Text text={recentTitle} fontWeight="semiBold" composeStyle={composeStyles.heading} />
+      )}
+      {ready &&
+        recent.map((conversation) => (
+          <Surface key={conversation.id} onClick={() => openChat(conversation.id)}>
+            <ListItem>
+              <ListItem.HeadlineContent>
+                <Text text={conversation.title} maxLines={1} />
+              </ListItem.HeadlineContent>
+              <ListItem.TrailingContent>
+                <Text text={whenLabel(conversation.updated_at)} />
+              </ListItem.TrailingContent>
+            </ListItem>
+          </Surface>
+        ))}
 
       <Text text={howItWorks} fontWeight="semiBold" composeStyle={composeStyles.heading} />
       {steps.map((step) => (

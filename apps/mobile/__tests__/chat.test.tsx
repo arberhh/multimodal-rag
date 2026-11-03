@@ -6,11 +6,14 @@ import { parseMarkdown, parseSpans } from "~/features/chat/parseMarkdown";
 jest.mock("~/features/server/config", () => ({ serverUrl: "http://test-server" }));
 // SwiftUI only renders in native builds, so these tests use the web view
 const mockSetString = jest.fn(async () => true);
+const mockParams: { id?: string } = {};
 jest.mock("one", () => ({
   Link: () => null,
   useSafeAreaInsets: () => ({ bottom: 0 }),
+  useLocalSearchParams: () => mockParams,
   One: {
     platform: "web",
+    Storage: { getItem: () => "test-device", setItem() {} },
     Clipboard: { setString: (text: string) => mockSetString(text) },
     Haptics: { impact() {}, notification() {}, selection() {} },
   },
@@ -66,6 +69,7 @@ const ask = async (question: string) => {
 };
 
 beforeEach(() => {
+  delete mockParams.id;
   mockFetch.mockReset();
   mockSetString.mockClear();
   mockFetch.mockResolvedValue({
@@ -168,7 +172,10 @@ describe("chat screen", () => {
     expect(screen.getByText("What was Q1 revenue?")).toBeOnTheScreen();
     expect(screen.getByText("Thinking…")).toBeOnTheScreen();
     // the conversation is started by the first question, and the question goes to it
-    expect(mockFetch).toHaveBeenCalledWith("http://test-server/conversations", { method: "POST" });
+    expect(mockFetch).toHaveBeenCalledWith("http://test-server/conversations", {
+      method: "POST",
+      headers: { "X-Device-Id": "test-device" },
+    });
     expect(FakeRequest.last.url).toBe("http://test-server/conversations/c1/messages");
     expect(JSON.parse(FakeRequest.last.body)).toEqual({ question: "What was Q1 revenue?" });
 
@@ -369,5 +376,37 @@ describe("chat screen", () => {
     await act(async () => fireEvent.press(screen.getByLabelText("Copy answer")));
 
     expect(mockSetString).toHaveBeenCalledWith("5M.");
+  });
+
+  it("opens a saved chat and carries on in it", async () => {
+    mockParams.id = "c9";
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        messages: [
+          { role: "user", content: "Q1 revenue?", sources: null },
+          { role: "assistant", content: "It was 5M.", sources: [source] },
+        ],
+      }),
+    });
+    await render(<Chat />);
+
+    expect(await screen.findByText("It was 5M.")).toBeOnTheScreen();
+    expect(screen.getByText("Q1 revenue?")).toBeOnTheScreen();
+    expect(screen.getByText("report.pdf · p. 3")).toBeOnTheScreen();
+
+    await ask("And Q2?");
+    // no new conversation: the question goes to the saved one
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(FakeRequest.last.url).toBe("http://test-server/conversations/c9/messages");
+  });
+
+  it("shows an error when a saved chat can't be opened", async () => {
+    mockParams.id = "c9";
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+    await render(<Chat />);
+
+    expect(await screen.findByText("Couldn't open the chat (404)")).toBeOnTheScreen();
+    expect(screen.queryByText("Try again")).toBeNull();
   });
 });
