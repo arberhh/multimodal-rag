@@ -73,6 +73,11 @@ describe("reading the stream", () => {
     expect(second.events).toEqual([{ event: "text", data: { text: "lo" } }]);
     expect(second.rest).toBe("");
   });
+
+  it("reads lines ending in \\r\\n and data split over several lines", () => {
+    const { events } = parseEvents('event: done\r\ndata: {"sources":\r\ndata: []}\r\n\r\n');
+    expect(events).toEqual([{ event: "done", data: { sources: [] } }]);
+  });
 });
 
 describe("reading markdown", () => {
@@ -120,6 +125,18 @@ describe("reading markdown", () => {
       { text: " in " },
       { text: "Q1", code: true },
     ]);
+  });
+
+  it("keeps bold text that contains a star", () => {
+    expect(parseSpans("**5 * 2** units")).toMatchObject([
+      { text: "5 * 2", bold: true },
+      { text: " units" },
+    ]);
+  });
+
+  it("waits for the text of a list item or heading still being written", () => {
+    expect(parseMarkdown("Results:\n-")).toMatchObject([{ type: "paragraph", text: "Results:" }]);
+    expect(parseMarkdown("Results:\n##")).toHaveLength(1);
   });
 });
 
