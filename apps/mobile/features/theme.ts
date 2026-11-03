@@ -1,9 +1,7 @@
-import { type ColorValue, Platform, PlatformColor, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
+import { systemColor as system } from "./systemColor";
 
 // iOS system colors follow light and dark mode. Android and web keep the light colors for now
-const system = (name: string, light: string): ColorValue =>
-  Platform.OS === "ios" ? PlatformColor(name) : light;
-
 export const colors = {
   accent: system("systemBlue", "#2563eb"),
   background: system("systemBackground", "#fff"),
@@ -11,6 +9,7 @@ export const colors = {
   buttonBackground: system("label", "#18181b"),
   buttonText: system("systemBackground", "#fff"),
   connected: system("systemGreen", "#22c55e"),
+  faint: system("tertiaryLabel", "#a1a1aa"),
   // a light fill behind small things, like source pills and suggestions
   fill: system("tertiarySystemFill", "#f4f4f5"),
   muted: system("secondaryLabel", "#71717a"),

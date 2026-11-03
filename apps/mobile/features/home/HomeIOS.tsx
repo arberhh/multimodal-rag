@@ -1,5 +1,6 @@
 import { One } from "one";
-import { PlatformColor, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
+import { colors } from "~/features/theme";
 import { destinations, howItWorks, intro, reachLabel, steps } from "./content";
 import type { HomeViewProps } from "./types";
 
@@ -59,12 +60,12 @@ const styles = StyleSheet.create({
 // system colors, so the screen follows light and dark mode
 const swiftStyles = {
   hero: { maxWidth: Infinity, paddingTop: 8, paddingBottom: 8 },
-  heroIcon: { fontSize: 44, foregroundStyle: PlatformColor("systemBlue") },
+  heroIcon: { fontSize: 44, foregroundStyle: colors.accent },
   heroTitle: { textStyle: "title2", fontWeight: "bold" },
   heroDetail: {
     textStyle: "subheadline",
     multilineTextAlignmentWithTextAlignment: "center",
-    foregroundStyle: PlatformColor("secondaryLabel"),
+    foregroundStyle: colors.muted,
   },
   // the steps read as one list, not rows to tap
   step: {
@@ -72,14 +73,14 @@ const swiftStyles = {
     paddingTop: 4,
     paddingBottom: 4,
   },
-  rowIcon: { fontSize: 22, width: 30, foregroundStyle: PlatformColor("systemBlue") },
-  stepIcon: { fontSize: 20, width: 30, foregroundStyle: PlatformColor("secondaryLabel") },
-  rowTitle: { textStyle: "body", foregroundStyle: PlatformColor("label") },
-  secondary: { textStyle: "subheadline", foregroundStyle: PlatformColor("secondaryLabel") },
+  rowIcon: { fontSize: 22, width: 30, foregroundStyle: colors.accent },
+  stepIcon: { fontSize: 20, width: 30, foregroundStyle: colors.muted },
+  rowTitle: { textStyle: "body", foregroundStyle: colors.text },
+  secondary: { textStyle: "subheadline", foregroundStyle: colors.muted },
   chevron: {
     textStyle: "footnote",
     fontWeight: "semibold",
-    foregroundStyle: PlatformColor("tertiaryLabel"),
+    foregroundStyle: colors.faint,
   },
   enabled: { disabled: false },
   disabled: { disabled: true, opacity: 0.5 },
