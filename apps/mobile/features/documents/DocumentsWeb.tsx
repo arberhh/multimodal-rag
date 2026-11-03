@@ -1,5 +1,13 @@
 import { Link } from "one";
-import { FlatList, type ListRenderItemInfo, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  type ColorValue,
+  FlatList,
+  type ListRenderItemInfo,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { colors, sharedStyles } from "~/features/theme";
 import type { Document, DocumentStatus } from "./api";
 import { addPdfLabel, emptyLabel, formatSize, statusLabel } from "./labels";
@@ -62,7 +70,7 @@ function keyExtractor(doc: Document) {
   return doc.id;
 }
 
-const dotColor: Record<DocumentStatus, string> = {
+const dotColor: Record<DocumentStatus, ColorValue> = {
   processing: colors.pending,
   ready: colors.connected,
   failed: colors.unreachable,

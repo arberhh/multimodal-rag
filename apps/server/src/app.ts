@@ -16,7 +16,17 @@ export async function buildApp(
   // shared plugins first, so the features below can use them
   if (options.databaseUrl) await app.register(db, { connectionString: options.databaseUrl });
 
-  app.get("/health", async () => ({ status: "ok" }));
+  // healthy only if the database answers too: without it every other route fails
+  app.get("/health", async (req, reply) => {
+    if (!app.hasDecorator("pg")) return { status: "ok" };
+    try {
+      await app.pg.query("SELECT 1");
+      return { status: "ok" };
+    } catch (err) {
+      req.log.error({ err }, "The database is unreachable");
+      return reply.code(503).send({ status: "database unreachable" });
+    }
+  });
   await app.register(uploads, { onUploaded: (id) => processDocument(app, id) });
   await app.register(extract);
   await app.register(search);

@@ -103,5 +103,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
   },
-  text: { fontSize: 16, lineHeight: 23 },
+  text: { color: colors.text, fontSize: 16, lineHeight: 23 },
 });

@@ -4,7 +4,17 @@ import { parseEvents } from "~/features/chat/sse";
 import { parseMarkdown, parseSpans } from "~/features/chat/parseMarkdown";
 
 jest.mock("~/features/server/config", () => ({ serverUrl: "http://test-server" }));
-jest.mock("one", () => ({ Link: () => null, useSafeAreaInsets: () => ({ bottom: 0 }) }));
+// SwiftUI only renders in native builds, so these tests use the web view
+const mockSetString = jest.fn(async () => true);
+jest.mock("one", () => ({
+  Link: () => null,
+  useSafeAreaInsets: () => ({ bottom: 0 }),
+  One: {
+    platform: "web",
+    Clipboard: { setString: (text: string) => mockSetString(text) },
+    Haptics: { impact() {}, notification() {}, selection() {} },
+  },
+}));
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
@@ -57,6 +67,7 @@ const ask = async (question: string) => {
 
 beforeEach(() => {
   mockFetch.mockReset();
+  mockSetString.mockClear();
   mockFetch.mockResolvedValue({
     ok: true,
     status: 201,
@@ -145,7 +156,8 @@ describe("chat screen", () => {
   it("starts empty", async () => {
     await render(<Chat />);
 
-    expect(screen.getByText("Ask a question about your documents.")).toBeOnTheScreen();
+    expect(screen.getByText("Ask about your documents")).toBeOnTheScreen();
+    expect(screen.getByText("What are these documents about?")).toBeOnTheScreen();
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
@@ -163,7 +175,7 @@ describe("chat screen", () => {
     await act(async () => FakeRequest.last.receive(text("Q1 revenue ")));
     expect(screen.getByText("Q1 revenue")).toBeOnTheScreen();
     expect(screen.queryByText("Thinking…")).toBeNull();
-    expect(screen.queryByText("Sources")).toBeNull();
+    expect(screen.queryByText("report.pdf · p. 3")).toBeNull();
 
     await act(async () =>
       FakeRequest.last.receive(text("was 5M.") + event("done", { sources: [source] })),
@@ -171,7 +183,6 @@ describe("chat screen", () => {
     await act(async () => FakeRequest.last.finish());
 
     expect(screen.getByText("Q1 revenue was 5M.")).toBeOnTheScreen();
-    expect(screen.getByText("Sources")).toBeOnTheScreen();
     expect(screen.getByText("report.pdf · p. 3")).toBeOnTheScreen();
   });
 
@@ -228,7 +239,7 @@ describe("chat screen", () => {
     expect(screen.getByText("Could not answer the question")).toBeOnTheScreen();
     expect(screen.getByText("Anything?")).toBeOnTheScreen();
     expect(screen.queryByText("Thinking…")).toBeNull();
-    expect(screen.getByText("Send")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Send")).toBeOnTheScreen();
   });
 
   it.each([
@@ -258,7 +269,7 @@ describe("chat screen", () => {
     await act(async () => happen());
 
     expect(screen.getByText(message)).toBeOnTheScreen();
-    expect(screen.getByText("Send")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Send")).toBeOnTheScreen();
   });
 
   it("stops the answer when the screen is closed", async () => {
@@ -298,5 +309,65 @@ describe("chat screen", () => {
     await act(async () => fireEvent.press(screen.getByLabelText("Send")));
 
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("asks a suggested question when it is tapped", async () => {
+    await render(<Chat />);
+
+    await act(async () => fireEvent.press(screen.getByText("Summarize the key numbers")));
+
+    expect(JSON.parse(FakeRequest.last.body)).toEqual({ question: "Summarize the key numbers" });
+  });
+
+  it("stops the answer and keeps what was written", async () => {
+    await render(<Chat />);
+    await ask("Long answer?");
+    await act(async () => FakeRequest.last.receive(text("Once upon")));
+
+    await act(async () => fireEvent.press(screen.getByLabelText("Stop")));
+
+    expect(FakeRequest.last.aborted).toBe(true);
+    expect(screen.getByText("Once upon")).toBeOnTheScreen();
+    expect(screen.getByText("Stopped")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Send")).toBeOnTheScreen();
+  });
+
+  it("asks a failed question again", async () => {
+    await render(<Chat />);
+    await ask("Anything?");
+    await act(async () => FakeRequest.last.finish(500));
+    const failed = FakeRequest.last;
+
+    await act(async () => fireEvent.press(screen.getByText("Try again")));
+
+    expect(FakeRequest.last).not.toBe(failed);
+    expect(JSON.parse(FakeRequest.last.body)).toEqual({ question: "Anything?" });
+    expect(screen.getAllByText("Anything?")).toHaveLength(1);
+    expect(screen.queryByText("Couldn't ask (500)")).toBeNull();
+  });
+
+  it("starts a new conversation on New chat", async () => {
+    await render(<Chat />);
+    await ask("First?");
+    await act(async () => FakeRequest.last.receive(text("One.") + event("done", { sources: [] })));
+    await act(async () => FakeRequest.last.finish());
+
+    await act(async () => fireEvent.press(screen.getByText("New chat")));
+    expect(screen.queryByText("First?")).toBeNull();
+    expect(screen.getByText("Ask about your documents")).toBeOnTheScreen();
+
+    await ask("Second?");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("copies a finished answer", async () => {
+    await render(<Chat />);
+    await ask("Q1?");
+    await act(async () => FakeRequest.last.receive(text("5M.") + event("done", { sources: [] })));
+    await act(async () => FakeRequest.last.finish());
+
+    await act(async () => fireEvent.press(screen.getByLabelText("Copy answer")));
+
+    expect(mockSetString).toHaveBeenCalledWith("5M.");
   });
 });

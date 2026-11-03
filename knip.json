@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     "apps/mobile": {
-      "entry": ["app/**/*.{ts,tsx}"],
+      "entry": ["app/**/*.{ts,tsx}", "features/**/*.native.{ts,tsx}"],
       "project": ["app/**/*.{ts,tsx}", "features/**/*.{ts,tsx}"],
       "vite": false,
       "ignore": ["react-native.config.cjs"],
