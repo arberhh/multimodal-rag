@@ -1,5 +1,5 @@
 import { One } from "one";
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { getMessages, type Message } from "~/features/conversations/api";
 import { askQuestion, createConversation, type Source } from "./api";
 
@@ -15,7 +15,7 @@ type ChatState = {
   turns: Turn[];
   current: Turn | null; // the turn being answered, which joins the others when it ends
   error: string | null;
-  opening: boolean; // a saved chat's messages are still loading
+  opening: boolean; // a saved chat's messages haven't loaded yet: still loading, or failed to
 };
 
 type ChatAction =
@@ -27,7 +27,8 @@ type ChatAction =
   | { type: "retried" }
   | { type: "cleared" }
   | { type: "opened"; turns: Turn[] }
-  | { type: "openFailed"; error: string };
+  | { type: "openFailed"; error: string }
+  | { type: "reopened" };
 
 const empty: ChatState = { turns: [], current: null, error: null, opening: false };
 
@@ -58,7 +59,9 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
   }
   if (action.type === "cleared") return empty;
   if (action.type === "opened") return { ...empty, turns: action.turns };
-  if (action.type === "openFailed") return { ...empty, error: action.error };
+  // still opening, so nothing can be sent into a chat the screen doesn't show
+  if (action.type === "openFailed") return { ...empty, opening: true, error: action.error };
+  if (action.type === "reopened") return { ...state, error: null };
   if (action.type === "retried") {
     // the failed question goes, and is asked again
     return { ...state, error: null, turns: state.turns.slice(0, -1) };
@@ -98,6 +101,8 @@ export function useChat(openId?: string) {
     ...empty,
     opening: openId !== undefined,
   });
+  // each try at loading the saved chat, so Try again can load it again
+  const [openAttempt, setOpenAttempt] = useState(0);
   const conversationId = useRef<string | null>(openId ?? null);
   // the question being answered: set at once, so a second tap before the next render can't send
   // another, and aborted to stop it, or when the screen closes
@@ -119,7 +124,7 @@ export function useChat(openId?: string) {
       }
     };
     open();
-  }, [openId]);
+  }, [openId, openAttempt]);
 
   const send = async (draft: string) => {
     const question = draft.trim();
@@ -159,9 +164,16 @@ export function useChat(openId?: string) {
   const stop = () => asking.current?.abort();
 
   const last = turns.at(-1);
-  const canRetry = Boolean(last?.failed) && !current;
+  // the saved chat that failed to load, or else the question that failed
+  const canRetry = opening ? error !== null : Boolean(last?.failed) && !current;
   const retry = () => {
-    if (!canRetry || !last) return;
+    if (!canRetry) return;
+    if (opening) {
+      dispatch({ type: "reopened" });
+      setOpenAttempt((n) => n + 1);
+      return;
+    }
+    if (!last) return;
     dispatch({ type: "retried" });
     send(last.question);
   };

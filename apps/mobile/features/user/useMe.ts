@@ -28,7 +28,11 @@ export function useMe(enabled: boolean) {
     try {
       setName((await saveName(next)).name);
     } catch (err) {
-      Alert.alert("Couldn't save your name", err instanceof Error ? err.message : undefined);
+      const problem = "Couldn't save your name";
+      const detail = err instanceof Error ? err.message : undefined;
+      // Alert does nothing on web, so the browser tells instead
+      if (Platform.OS === "web") window.alert(detail ? `${problem}: ${detail}` : problem);
+      else Alert.alert(problem, detail);
     }
   };
 

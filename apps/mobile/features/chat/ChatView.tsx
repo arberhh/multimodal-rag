@@ -257,7 +257,14 @@ export function ChatView({
             style={styles.turns}
             contentContainerStyle={turns.length ? styles.turnsContent : styles.turnsEmpty}
             ListEmptyComponent={
-              opening ? <ActivityIndicator color={colors.muted} /> : <EmptyState onPick={ask} />
+              // a saved chat that failed to load shows only its error, below
+              opening ? (
+                error ? undefined : (
+                  <ActivityIndicator color={colors.muted} />
+                )
+              ) : (
+                <EmptyState onPick={ask} />
+              )
             }
             renderItem={renderTurn}
             onScroll={onScroll}

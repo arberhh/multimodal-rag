@@ -407,6 +407,26 @@ describe("chat screen", () => {
     await render(<Chat />);
 
     expect(await screen.findByText("Couldn't open the chat (404)")).toBeOnTheScreen();
-    expect(screen.queryByText("Try again")).toBeNull();
+  });
+
+  it("doesn't send into a saved chat that failed to load, and loads it again", async () => {
+    mockParams.id = "c9";
+    mockFetch.mockRejectedValueOnce(new Error("Network request failed"));
+    await render(<Chat />);
+    await screen.findByText("Network request failed");
+
+    const before = FakeRequest.last;
+    await ask("Anything?");
+    expect(FakeRequest.last).toBe(before);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ messages: [{ role: "user", content: "Q1 revenue?", sources: null }] }),
+    });
+    await act(async () => fireEvent.press(screen.getByText("Try again")));
+
+    expect(await screen.findByText("Q1 revenue?")).toBeOnTheScreen();
+    expect(screen.queryByText("Network request failed")).toBeNull();
   });
 });
