@@ -1,7 +1,7 @@
 import { Link } from "one";
 import { FlatList, type ListRenderItemInfo, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, sharedStyles } from "~/features/theme";
-import type { ListedConversation as Conversation } from "@multimodal-rag/shared";
+import type { Conversation } from "./api";
 import { noChatsLabel, whenLabel } from "./labels";
 import type { ConversationsViewProps } from "./types";
 

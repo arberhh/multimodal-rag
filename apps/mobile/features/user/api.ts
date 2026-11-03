@@ -1,20 +1,19 @@
-import type { MeResponse, NameBody, User } from "@multimodal-rag/shared";
 import { apiFetch } from "~/features/server/apiFetch";
 
-export async function getMe(): Promise<User> {
+export type Me = { id: string; name: string | null };
+
+export async function getMe(): Promise<Me> {
   const res = await apiFetch("/me");
   if (!res.ok) throw new Error(`Couldn't load you (${res.status})`);
-  const body: MeResponse = await res.json();
-  return body.user;
+  return (await res.json()).user;
 }
 
-export async function saveName(name: string): Promise<User> {
+export async function saveName(name: string): Promise<Me> {
   const res = await apiFetch("/me", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name } satisfies NameBody),
+    body: JSON.stringify({ name }),
   });
   if (!res.ok) throw new Error(`Couldn't save your name (${res.status})`);
-  const body: MeResponse = await res.json();
-  return body.user;
+  return (await res.json()).user;
 }

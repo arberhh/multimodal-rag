@@ -1,5 +1,4 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Source } from "@multimodal-rag/shared";
 import type { findPages } from "../search/index.js";
 
 // TODO: pick the model (extraction uses claude-haiku-5-5)
@@ -17,6 +16,7 @@ const SYSTEM = `You answer questions about the user's documents, using only the 
 
 type Page = Awaited<ReturnType<typeof findPages>>[number];
 type Message = { role: "user" | "assistant"; content: string };
+export type Source = { documentId: string; fileName: string; page: number };
 
 // Streams an answer to the question from the found pages; each piece of text goes to onText.
 // Aborting the signal stops the model mid-answer.

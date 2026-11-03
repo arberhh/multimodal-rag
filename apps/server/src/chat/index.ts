@@ -1,15 +1,4 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import type {
-  AnswerEvent,
-  AskBody,
-  Conversation,
-  ConversationResponse,
-  ConversationsResponse,
-  ErrorResponse,
-  ListedConversation,
-  Message,
-  MessagesResponse,
-} from "@multimodal-rag/shared";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { idParams } from "../schemas.js";
 import { type Embed, embedTexts } from "../search/embed.js";
@@ -21,7 +10,7 @@ import { answerQuestion } from "./answer.js";
 const TITLE_LENGTH = 80;
 
 // one server-sent event: the client reads `event` to know what `data` holds
-function send(reply: FastifyReply, { event, data }: AnswerEvent) {
+function send(reply: FastifyReply, event: string, data: unknown) {
   reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
@@ -39,8 +28,8 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
     return rowCount !== 0;
   };
 
-  app.post<{ Reply: ConversationResponse }>("/conversations", async (req, reply) => {
-    const { rows } = await app.pg.query<Conversation>(
+  app.post("/conversations", async (req, reply) => {
+    const { rows } = await app.pg.query(
       `INSERT INTO conversations (user_id) VALUES ($1)
        RETURNING id, title, created_at, updated_at`,
       [userOf(req).id],
@@ -50,7 +39,7 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
 
   // the user's conversations, latest question first. One with no question yet has no title, and
   // isn't listed
-  app.get<{ Querystring: { limit: number }; Reply: ConversationsResponse }>(
+  app.get<{ Querystring: { limit: number } }>(
     "/conversations",
     {
       schema: {
@@ -61,7 +50,7 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
       },
     },
     async (req) => {
-      const { rows } = await app.pg.query<ListedConversation>(
+      const { rows } = await app.pg.query(
         `SELECT id, title, created_at, updated_at FROM conversations
          WHERE user_id = $1 AND title IS NOT NULL
          ORDER BY updated_at DESC LIMIT $2`,
@@ -71,7 +60,7 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
     },
   );
 
-  app.delete<{ Params: { id: string }; Reply: { 204: void; 404: ErrorResponse } }>(
+  app.delete<{ Params: { id: string } }>(
     "/conversations/:id",
     { schema: { params: idParams } },
     async (req, reply) => {
@@ -85,14 +74,14 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
     },
   );
 
-  app.get<{ Params: { id: string }; Reply: MessagesResponse | ErrorResponse }>(
+  app.get<{ Params: { id: string } }>(
     "/conversations/:id/messages",
     { schema: { params: idParams } },
     async (req, reply) => {
       if (!(await ownConversation(req.params.id, userOf(req).id))) {
         return reply.code(404).send({ error: "Conversation not found" });
       }
-      const { rows } = await app.pg.query<Message>(
+      const { rows } = await app.pg.query(
         `SELECT id, role, content, sources, created_at FROM messages
          WHERE conversation_id = $1 ORDER BY created_at, id`,
         [req.params.id],
@@ -101,7 +90,7 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
     },
   );
 
-  app.post<{ Params: { id: string }; Body: AskBody; Reply: ErrorResponse }>(
+  app.post<{ Params: { id: string }; Body: { question: string; document?: string } }>(
     "/conversations/:id/messages",
     {
       schema: {
@@ -173,7 +162,7 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
           question,
           history,
           pages,
-          (piece) => send(reply, { event: "text", data: { text: piece } }),
+          (piece) => send(reply, "text", { text: piece }),
           client,
           left.signal,
         );
@@ -182,14 +171,14 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
            VALUES ($1, 'assistant', $2, $3)`,
           [id, text, JSON.stringify(sources)],
         );
-        send(reply, { event: "done", data: { sources } });
+        send(reply, "done", { sources });
       } catch (err) {
         if (left.signal.aborted) {
           req.log.info("The app left before the answer ended");
           return;
         }
         req.log.error({ err }, "Answering failed");
-        send(reply, { event: "error", data: { error: "Could not answer the question" } });
+        send(reply, "error", { error: "Could not answer the question" });
       }
       reply.raw.end();
     },

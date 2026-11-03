@@ -1,7 +1,7 @@
 import { One } from "one";
 import { StyleSheet } from "react-native";
 import { colors } from "~/features/theme";
-import type { Document } from "@multimodal-rag/shared";
+import type { Document } from "./api";
 import { addPdfLabel, emptyLabel, formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 

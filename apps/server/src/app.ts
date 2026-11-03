@@ -1,5 +1,4 @@
 import cors from "@fastify/cors";
-import type { HealthResponse } from "@multimodal-rag/shared";
 import Fastify, { type FastifyServerOptions } from "fastify";
 import { chat } from "./chat/index.js";
 import { db } from "./plugins/db.js";
@@ -23,7 +22,7 @@ export async function buildApp(
   }
 
   // healthy only if the database answers too: without it every other route fails
-  app.get<{ Reply: HealthResponse }>("/health", async (req, reply) => {
+  app.get("/health", async (req, reply) => {
     if (!app.hasDecorator("pg")) return { status: "ok" };
     try {
       await app.pg.query("SELECT 1");

@@ -1,10 +1,4 @@
 import multipart from "@fastify/multipart";
-import type {
-  Document,
-  DocumentResponse,
-  DocumentsResponse,
-  ErrorResponse,
-} from "@multimodal-rag/shared";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
@@ -26,7 +20,7 @@ async function saveToDatabase(
   app: FastifyInstance,
   { id, user, fileName, size }: { id: string; user: string; fileName: string; size: number },
 ) {
-  const { rows } = await app.pg.query<Document>(
+  const { rows } = await app.pg.query(
     `INSERT INTO documents (id, file_name, size_bytes, user_id) VALUES ($1, $2, $3, $4)
      RETURNING id, file_name, size_bytes, status, created_at`,
     [id, fileName, size, user],
@@ -35,7 +29,7 @@ async function saveToDatabase(
 }
 
 async function getDocuments(app: FastifyInstance, user: string) {
-  return await app.pg.query<Document>(
+  return await app.pg.query(
     `SELECT id, file_name, size_bytes, status, created_at FROM documents
      WHERE user_id = $1 ORDER BY created_at DESC`,
     [user],
@@ -50,7 +44,7 @@ export const uploads: FastifyPluginAsync<{ onUploaded?: (id: string) => void }> 
   await app.register(multipart, { limits: { fileSize: MAX_FILE_BYTES } });
   await mkdir("uploads", { recursive: true });
 
-  app.post<{ Reply: DocumentResponse | ErrorResponse }>("/uploads", async (req, reply) => {
+  app.post("/uploads", async (req, reply) => {
     const data = await req.file();
     if (!data) return reply.code(400).send({ error: "No file uploaded" });
 
@@ -73,11 +67,9 @@ export const uploads: FastifyPluginAsync<{ onUploaded?: (id: string) => void }> 
     }
   });
 
-  app.get<{ Reply: DocumentsResponse }>("/uploads", async (req) => ({
-    docs: (await getDocuments(app, userOf(req).id)).rows,
-  }));
+  app.get("/uploads", async (req) => ({ docs: (await getDocuments(app, userOf(req).id)).rows }));
 
-  app.delete<{ Params: { id: string }; Reply: { 204: void; 404: ErrorResponse } }>(
+  app.delete<{ Params: { id: string } }>(
     "/uploads/:id",
     {
       schema: {

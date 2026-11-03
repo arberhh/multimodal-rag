@@ -1,4 +1,3 @@
-import type { HealthResponse } from "@multimodal-rag/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppState } from "react-native";
 import { serverUrl } from "./config";
@@ -20,10 +19,7 @@ export function useServerStatus() {
         const res = await fetch(`${serverUrl}/health`, {
           signal: AbortSignal.timeout(TIMEOUT_MS),
         });
-        if (res.ok) {
-          const body: HealthResponse = await res.json();
-          if (body.status === "ok") next = "connected";
-        }
+        if (res.ok && (await res.json()).status === "ok") next = "connected";
       } catch {
         // no answer, or not JSON: it stays unreachable
       }

@@ -1,7 +1,7 @@
 import { One } from "one";
 import { StyleSheet } from "react-native";
 import { colors } from "~/features/theme";
-import type { ListedConversation as Conversation } from "@multimodal-rag/shared";
+import type { Conversation } from "./api";
 import { noChatsLabel, whenLabel } from "./labels";
 import type { ConversationsViewProps } from "./types";
 

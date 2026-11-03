@@ -1,4 +1,4 @@
-import type { DocumentStatus } from "@multimodal-rag/shared";
+import type { DocumentStatus } from "./api";
 
 export const statusLabel: Record<DocumentStatus, string> = {
   processing: "Preparing…",
