@@ -32,14 +32,23 @@ const plugin: FastifyPluginAsync = async (app) => {
     if (typeof deviceId !== "string" || !DEVICE_ID.test(deviceId)) {
       return reply.code(401).send({ error: "Send X-Device-Id with this app's id" });
     }
-    // the first request from an install creates its user; later ones find it
-    const { rows } = await app.pg.query<User>(
+    // found with a read, so the requests the app keeps making write nothing
+    const found = await app.pg.query<User>("SELECT id, name FROM users WHERE device_id = $1", [
+      deviceId,
+    ]);
+    if (found.rows[0]) {
+      req.user = found.rows[0];
+      return;
+    }
+    // the first request from an install creates its user. If two come at once, the second
+    // finds the row the first made
+    const made = await app.pg.query<User>(
       `INSERT INTO users (device_id) VALUES ($1)
        ON CONFLICT (device_id) DO UPDATE SET device_id = EXCLUDED.device_id
        RETURNING id, name`,
       [deviceId],
     );
-    req.user = rows[0];
+    req.user = made.rows[0];
   });
 
   app.get("/me", async (req) => ({ user: userOf(req) }));
@@ -51,7 +60,8 @@ const plugin: FastifyPluginAsync = async (app) => {
         body: {
           type: "object",
           required: ["name"],
-          properties: { name: { type: "string", minLength: 1, maxLength: 60 } },
+          // \S: at least one character that isn't a space, as the name is saved trimmed
+          properties: { name: { type: "string", pattern: "\\S", maxLength: 60 } },
         },
       },
     },
