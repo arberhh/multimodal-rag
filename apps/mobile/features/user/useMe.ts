@@ -12,19 +12,14 @@ export function useMe(enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) return;
-    let current = true;
     const load = async () => {
       try {
-        const me = await getMe();
-        if (current) setName(me.name);
+        setName((await getMe()).name);
       } catch {
         // the name is a nicety: without it the screen just doesn't show one
       }
     };
     load();
-    return () => {
-      current = false;
-    };
   }, [enabled]);
 
   const save = async (value: string | null | undefined) => {
