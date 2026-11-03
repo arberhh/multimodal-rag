@@ -1,5 +1,5 @@
 import { Link, useSafeAreaInsets } from "one";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   type HostInstance,
@@ -45,6 +45,36 @@ function useKeyboardOpen() {
   return open;
 }
 
+// memo: a finished turn keeps the same object, so only the turn being answered is drawn again
+// with each new piece of text
+const TurnRow = memo(function TurnRow({ turn, thinking }: { turn: Turn; thinking: boolean }) {
+  return (
+    <View style={styles.turn}>
+      <View style={styles.userBubble}>
+        <Text style={styles.userText} selectable>
+          {turn.question}
+        </Text>
+      </View>
+      <View style={styles.answer}>
+        {turn.answer ? <Markdown>{turn.answer}</Markdown> : null}
+        {thinking ? <Text style={styles.muted}>Thinking…</Text> : null}
+        {turn.sources?.length ? (
+          <View style={styles.sources}>
+            <Text style={styles.muted}>Sources</Text>
+            {turn.sources.map((source) => (
+              <View key={`${source.documentId}#${source.page}`} style={styles.source}>
+                <Text style={styles.sourceText} numberOfLines={1}>
+                  {source.fileName} · p. {source.page}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+});
+
 // one view for every platform: unlike the documents list, a chat has nothing native to gain
 export function ChatView({ turns, loading, error, send }: ChatViewProps) {
   const [draft, setDraft] = useState("");
@@ -71,31 +101,7 @@ export function ChatView({ turns, loading, error, send }: ChatViewProps) {
   };
 
   const renderTurn = ({ item, index }: ListRenderItemInfo<Turn>) => (
-    <View style={styles.turn}>
-      <View style={styles.userBubble}>
-        <Text style={styles.userText} selectable>
-          {item.question}
-        </Text>
-      </View>
-      <View style={styles.answer}>
-        {item.answer ? <Markdown>{item.answer}</Markdown> : null}
-        {!item.answer && loading && index === turns.length - 1 ? (
-          <Text style={styles.muted}>Thinking…</Text>
-        ) : null}
-        {item.sources?.length ? (
-          <View style={styles.sources}>
-            <Text style={styles.muted}>Sources</Text>
-            {item.sources.map((source) => (
-              <View key={`${source.documentId}#${source.page}`} style={styles.source}>
-                <Text style={styles.sourceText} numberOfLines={1}>
-                  {source.fileName} · p. {source.page}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-      </View>
-    </View>
+    <TurnRow turn={item} thinking={!item.answer && loading && index === turns.length - 1} />
   );
 
   return (
@@ -140,7 +146,15 @@ export function ChatView({ turns, loading, error, send }: ChatViewProps) {
             }}
           />
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {error && (
+            <Text
+              style={styles.error}
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+            >
+              {error}
+            </Text>
+          )}
 
           {/* the bottom space is on this row, not on the KeyboardAvoidingView: that view sets its
               own paddingBottom for the keyboard and would overwrite it */}
@@ -163,6 +177,8 @@ export function ChatView({ turns, loading, error, send }: ChatViewProps) {
               onPress={submit}
               disabled={loading}
               accessibilityLabel="Send"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: loading }}
               style={[sharedStyles.button, loading && styles.disabled]}
             >
               <Text style={sharedStyles.buttonText}>{sendLabel(loading)}</Text>
