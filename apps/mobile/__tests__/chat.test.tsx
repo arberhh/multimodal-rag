@@ -16,9 +16,11 @@ class FakeRequest {
   responseText = "";
   body = "";
   url = "";
+  aborted = false;
   onprogress?: () => void;
   onload?: () => void;
   onerror?: () => void;
+  onabort?: () => void;
 
   open(_method: string, url: string) {
     this.url = url;
@@ -28,16 +30,21 @@ class FakeRequest {
   send(body: string) {
     this.body = body;
   }
+  abort() {
+    this.aborted = true;
+    this.onabort?.();
+  }
 
   receive(chunk: string) {
     this.responseText += chunk;
     this.onprogress?.();
   }
-  finish() {
+  finish(status = 200) {
+    this.status = status;
     this.onload?.();
   }
 }
-global.XMLHttpRequest = FakeRequest as never;
+Object.defineProperty(global, "XMLHttpRequest", { value: FakeRequest });
 
 const event = (name: string, data: unknown) => `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
 const text = (piece: string) => event("text", { text: piece });
@@ -151,6 +158,21 @@ describe("chat screen", () => {
     expect(screen.getByText("report.pdf · p. 3")).toBeOnTheScreen();
   });
 
+  it("reads several events in one piece and an event split over two", async () => {
+    await render(<Chat />);
+    await ask("Letters?");
+
+    await act(async () =>
+      FakeRequest.last.receive(`${text("A ")}${text("B ")}event: text\ndata: {"te`),
+    );
+    await act(async () =>
+      FakeRequest.last.receive(`xt":"C"}\n\n${event("done", { sources: [] })}`),
+    );
+    await act(async () => FakeRequest.last.finish());
+
+    expect(screen.getByText("A B C")).toBeOnTheScreen();
+  });
+
   it("shows a table in the answer as a table", async () => {
     await render(<Chat />);
     await ask("Revenue by quarter?");
@@ -190,6 +212,58 @@ describe("chat screen", () => {
     expect(screen.getByText("Anything?")).toBeOnTheScreen();
     expect(screen.queryByText("Thinking…")).toBeNull();
     expect(screen.getByText("Send")).toBeOnTheScreen();
+  });
+
+  it.each([
+    ["the server refuses", () => FakeRequest.last.finish(500), "Couldn't ask (500)"],
+    [
+      "the server can't be reached",
+      () => FakeRequest.last.onerror?.(),
+      "Couldn't reach the server",
+    ],
+    [
+      "the answer ends without its sources",
+      () => {
+        FakeRequest.last.receive(text("Half"));
+        FakeRequest.last.finish();
+      },
+      "The answer was cut off",
+    ],
+    [
+      "an event can't be read",
+      () => FakeRequest.last.receive("event: text\ndata: {oops\n\n"),
+      "The answer couldn't be read",
+    ],
+  ])("shows an error when %s", async (_case, happen, message) => {
+    await render(<Chat />);
+    await ask("Anything?");
+
+    await act(async () => happen());
+
+    expect(screen.getByText(message)).toBeOnTheScreen();
+    expect(screen.getByText("Send")).toBeOnTheScreen();
+  });
+
+  it("stops the answer when the screen is closed", async () => {
+    await render(<Chat />);
+    await ask("Long answer?");
+    await act(async () => FakeRequest.last.receive(text("Once upon")));
+
+    await act(async () => screen.unmount());
+
+    expect(FakeRequest.last.aborted).toBe(true);
+  });
+
+  it("sends only one question when Send is pressed twice at once", async () => {
+    await render(<Chat />);
+    await act(async () => fireEvent.changeText(screen.getByLabelText("Question"), "Twice?"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Send"));
+      fireEvent.press(screen.getByLabelText("Send"));
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it("shows an error when the conversation can't be started", async () => {
