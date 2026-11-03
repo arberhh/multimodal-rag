@@ -6,6 +6,8 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   type ListRenderItemInfo,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   Pressable,
   StyleSheet,
@@ -19,6 +21,8 @@ import type { ChatViewProps, Turn } from "./useChat";
 
 const emptyLabel = "Ask a question about your documents.";
 const PAGE_PADDING = 16;
+// how close to the end still counts as at the end
+const END_MARGIN = 40;
 
 const sendLabel = (loading: boolean) => (loading ? "Answering…" : "Send");
 
@@ -48,13 +52,22 @@ export function ChatView({ turns, loading, error, send }: ChatViewProps) {
   const [top, setTop] = useState(0);
   const root = useRef<HostInstance>(null);
   const list = useRef<FlatList<Turn>>(null);
+  // whether the list is scrolled to the end, so the answer is followed only if the user hasn't
+  // scrolled up to read something else
+  const atEnd = useRef(true);
   const keyboardOpen = useKeyboardOpen();
   const { bottom } = useSafeAreaInsets();
 
   const submit = () => {
     if (!draft.trim() || loading) return;
+    atEnd.current = true;
     send(draft);
     setDraft("");
+  };
+
+  const onScroll = ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+    atEnd.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - END_MARGIN;
   };
 
   const renderTurn = ({ item, index }: ListRenderItemInfo<Turn>) => (
@@ -117,11 +130,14 @@ export function ChatView({ turns, loading, error, send }: ChatViewProps) {
             contentContainerStyle={styles.turnsContent}
             ListEmptyComponent={<Text style={styles.muted}>{emptyLabel}</Text>}
             renderItem={renderTurn}
+            onScroll={onScroll}
+            scrollEventThrottle={100}
             // follow the answer as it is written. Waiting a frame lets the new content be laid
             // out first, otherwise the list stops short of its last lines
-            onContentSizeChange={() =>
-              requestAnimationFrame(() => list.current?.scrollToEnd({ animated: false }))
-            }
+            onContentSizeChange={() => {
+              if (!atEnd.current) return;
+              requestAnimationFrame(() => list.current?.scrollToEnd({ animated: false }));
+            }}
           />
 
           {error && <Text style={styles.error}>{error}</Text>}
