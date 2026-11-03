@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { mkdir, stat, unlink } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
+import { userOf } from "../users/index.js";
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
 
@@ -15,18 +16,23 @@ async function removeFile(path: string) {
   }
 }
 
-async function saveToDatabase(app: FastifyInstance, id: string, fileName: string, size: number) {
+async function saveToDatabase(
+  app: FastifyInstance,
+  { id, user, fileName, size }: { id: string; user: string; fileName: string; size: number },
+) {
   const { rows } = await app.pg.query(
-    `INSERT INTO documents (id, file_name, size_bytes) VALUES ($1, $2, $3)
+    `INSERT INTO documents (id, file_name, size_bytes, user_id) VALUES ($1, $2, $3, $4)
      RETURNING id, file_name, size_bytes, status, created_at`,
-    [id, fileName, size],
+    [id, fileName, size, user],
   );
   return rows[0];
 }
 
-async function getDocuments(app: FastifyInstance) {
+async function getDocuments(app: FastifyInstance, user: string) {
   return await app.pg.query(
-    "SELECT id, file_name, size_bytes, status, created_at FROM documents ORDER BY created_at DESC",
+    `SELECT id, file_name, size_bytes, status, created_at FROM documents
+     WHERE user_id = $1 ORDER BY created_at DESC`,
+    [user],
   );
 }
 
@@ -47,7 +53,12 @@ export const uploads: FastifyPluginAsync<{ onUploaded?: (id: string) => void }> 
     const path = `uploads/${id}.pdf`;
     try {
       await pipeline(data.file, createWriteStream(path));
-      const doc = await saveToDatabase(app, id, data.filename, (await stat(path)).size);
+      const doc = await saveToDatabase(app, {
+        id,
+        user: userOf(req).id,
+        fileName: data.filename,
+        size: (await stat(path)).size,
+      });
       onUploaded?.(id); // e.g. start reading the PDF; the upload does not wait for it
       return { doc };
     } catch (err) {
@@ -56,7 +67,7 @@ export const uploads: FastifyPluginAsync<{ onUploaded?: (id: string) => void }> 
     }
   });
 
-  app.get("/uploads", async () => ({ docs: (await getDocuments(app)).rows }));
+  app.get("/uploads", async (req) => ({ docs: (await getDocuments(app, userOf(req).id)).rows }));
 
   app.delete<{ Params: { id: string } }>(
     "/uploads/:id",
@@ -67,8 +78,12 @@ export const uploads: FastifyPluginAsync<{ onUploaded?: (id: string) => void }> 
     },
     async (req, reply) => {
       const { id } = req.params;
-      // the document's pages go with it (ON DELETE CASCADE)
-      const { rowCount } = await app.pg.query("DELETE FROM documents WHERE id = $1", [id]);
+      // the document's pages go with it (ON DELETE CASCADE). Someone else's document is "not
+      // found" too, so its id gives nothing away
+      const { rowCount } = await app.pg.query(
+        "DELETE FROM documents WHERE id = $1 AND user_id = $2",
+        [id, userOf(req).id],
+      );
       if (rowCount === 0) return reply.code(404).send({ error: "Document not found" });
 
       await removeFile(`uploads/${id}.pdf`); // the row is gone, so a missing file is fine
