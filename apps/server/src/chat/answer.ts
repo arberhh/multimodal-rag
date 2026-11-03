@@ -19,12 +19,14 @@ type Message = { role: "user" | "assistant"; content: string };
 export type Source = { documentId: string; fileName: string; page: number };
 
 // Streams an answer to the question from the found pages; each piece of text goes to onText.
+// Aborting the signal stops the model mid-answer.
 export async function answerQuestion(
   question: string,
   history: Message[],
   pages: Page[],
   onText: (text: string) => void,
   client: Anthropic = new Anthropic(),
+  signal?: AbortSignal,
 ): Promise<{ text: string; sources: Source[] }> {
   // each page is a search result, so Claude can cite it and we can tell which page it used
   const results: Anthropic.SearchResultBlockParam[] = pages.map((p) => ({
@@ -35,15 +37,18 @@ export async function answerQuestion(
     citations: { enabled: true },
   }));
 
-  const stream = client.messages.stream({
-    model: MODEL,
-    max_tokens: 16000,
-    system: SYSTEM,
-    messages: [
-      ...history,
-      { role: "user", content: [...results, { type: "text", text: question }] },
-    ],
-  });
+  const stream = client.messages.stream(
+    {
+      model: MODEL,
+      max_tokens: 16000,
+      system: SYSTEM,
+      messages: [
+        ...history,
+        { role: "user", content: [...results, { type: "text", text: question }] },
+      ],
+    },
+    { signal },
+  );
   stream.on("text", onText);
   const message = await stream.finalMessage();
 

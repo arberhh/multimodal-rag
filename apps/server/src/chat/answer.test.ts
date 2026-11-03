@@ -11,10 +11,12 @@ const pages = [
 // The model is faked, so these tests never call the API. It streams `pieces`, then returns `content`.
 function fakeClient(pieces: string[], content: unknown[]) {
   const requests: Record<string, any>[] = [];
+  const options: Record<string, any>[] = [];
   const client = {
     messages: {
-      stream: (request: Record<string, any>) => {
+      stream: (request: Record<string, any>, option: Record<string, any> = {}) => {
         requests.push(request);
+        options.push(option);
         let onText = (_text: string) => {};
         return {
           on: (_event: "text", listener: (text: string) => void) => {
@@ -28,7 +30,7 @@ function fakeClient(pieces: string[], content: unknown[]) {
       },
     },
   } as unknown as Anthropic;
-  return { client, requests };
+  return { client, requests, options };
 }
 
 const cite = (search_result_index: number) => ({
@@ -37,6 +39,15 @@ const cite = (search_result_index: number) => ({
 });
 
 describe("answerQuestion", () => {
+  it("passes the signal on, so aborting it stops the model", async () => {
+    const { client, options } = fakeClient([], [{ type: "text", text: "ok", citations: null }]);
+    const signal = new AbortController().signal;
+
+    await answerQuestion("Q?", [], pages, () => {}, client, signal);
+
+    assert.equal(options[0].signal, signal);
+  });
+
   it("sends the history, then the pages as search results and the question", async () => {
     const { client, requests } = fakeClient([], [{ type: "text", text: "ok", citations: null }]);
     const history = [
