@@ -86,6 +86,13 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
         Connection: "keep-alive",
       });
 
+      // the app closed the request before the answer ended: stop the model instead of paying for
+      // an answer nobody will read
+      const left = new AbortController();
+      reply.raw.on("close", () => {
+        if (!reply.raw.writableEnded) left.abort();
+      });
+
       try {
         const { text, sources } = await answerQuestion(
           question,
@@ -93,6 +100,7 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
           pages,
           (piece) => send(reply, "text", { text: piece }),
           client,
+          left.signal,
         );
         await app.pg.query(
           `INSERT INTO messages (conversation_id, role, content, sources)
@@ -101,6 +109,10 @@ export const chat: FastifyPluginAsync<{ embed?: Embed; client?: Anthropic }> = a
         );
         send(reply, "done", { sources });
       } catch (err) {
+        if (left.signal.aborted) {
+          req.log.info("The app left before the answer ended");
+          return;
+        }
         req.log.error({ err }, "Answering failed");
         send(reply, "error", { error: "Could not answer the question" });
       }

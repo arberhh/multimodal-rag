@@ -1,11 +1,13 @@
 import { Link, useSafeAreaInsets } from "one";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   type HostInstance,
   Keyboard,
   KeyboardAvoidingView,
   type ListRenderItemInfo,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   Pressable,
   StyleSheet,
@@ -19,6 +21,8 @@ import type { ChatViewProps, Turn } from "./useChat";
 
 const emptyLabel = "Ask a question about your documents.";
 const PAGE_PADDING = 16;
+// how close to the end still counts as at the end
+const END_MARGIN = 40;
 
 const sendLabel = (loading: boolean) => (loading ? "Answering…" : "Send");
 
@@ -41,38 +45,23 @@ function useKeyboardOpen() {
   return open;
 }
 
-// one view for every platform: unlike the documents list, a chat has nothing native to gain
-export function ChatView({ turns, loading, error, send }: ChatViewProps) {
-  const [draft, setDraft] = useState("");
-  // how far down the window this screen starts (the header), which the keyboard must be offset by
-  const [top, setTop] = useState(0);
-  const root = useRef<HostInstance>(null);
-  const list = useRef<FlatList<Turn>>(null);
-  const keyboardOpen = useKeyboardOpen();
-  const { bottom } = useSafeAreaInsets();
-
-  const submit = () => {
-    if (!draft.trim() || loading) return;
-    send(draft);
-    setDraft("");
-  };
-
-  const renderTurn = ({ item, index }: ListRenderItemInfo<Turn>) => (
+// memo: a finished turn keeps the same object, so only the turn being answered is drawn again
+// with each new piece of text
+const TurnRow = memo(function TurnRow({ turn, thinking }: { turn: Turn; thinking: boolean }) {
+  return (
     <View style={styles.turn}>
       <View style={styles.userBubble}>
         <Text style={styles.userText} selectable>
-          {item.question}
+          {turn.question}
         </Text>
       </View>
       <View style={styles.answer}>
-        {item.answer ? <Markdown>{item.answer}</Markdown> : null}
-        {!item.answer && loading && index === turns.length - 1 ? (
-          <Text style={styles.muted}>Thinking…</Text>
-        ) : null}
-        {item.sources?.length ? (
+        {turn.answer ? <Markdown>{turn.answer}</Markdown> : null}
+        {thinking ? <Text style={styles.muted}>Thinking…</Text> : null}
+        {turn.sources?.length ? (
           <View style={styles.sources}>
             <Text style={styles.muted}>Sources</Text>
-            {item.sources.map((source) => (
+            {turn.sources.map((source) => (
               <View key={`${source.documentId}#${source.page}`} style={styles.source}>
                 <Text style={styles.sourceText} numberOfLines={1}>
                   {source.fileName} · p. {source.page}
@@ -83,6 +72,36 @@ export function ChatView({ turns, loading, error, send }: ChatViewProps) {
         ) : null}
       </View>
     </View>
+  );
+});
+
+// one view for every platform: unlike the documents list, a chat has nothing native to gain
+export function ChatView({ turns, loading, error, send }: ChatViewProps) {
+  const [draft, setDraft] = useState("");
+  // how far down the window this screen starts (the header), which the keyboard must be offset by
+  const [top, setTop] = useState(0);
+  const root = useRef<HostInstance>(null);
+  const list = useRef<FlatList<Turn>>(null);
+  // whether the list is scrolled to the end, so the answer is followed only if the user hasn't
+  // scrolled up to read something else
+  const atEnd = useRef(true);
+  const keyboardOpen = useKeyboardOpen();
+  const { bottom } = useSafeAreaInsets();
+
+  const submit = () => {
+    if (!draft.trim() || loading) return;
+    atEnd.current = true;
+    send(draft);
+    setDraft("");
+  };
+
+  const onScroll = ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+    atEnd.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - END_MARGIN;
+  };
+
+  const renderTurn = ({ item, index }: ListRenderItemInfo<Turn>) => (
+    <TurnRow turn={item} thinking={!item.answer && loading && index === turns.length - 1} />
   );
 
   return (
@@ -117,14 +136,25 @@ export function ChatView({ turns, loading, error, send }: ChatViewProps) {
             contentContainerStyle={styles.turnsContent}
             ListEmptyComponent={<Text style={styles.muted}>{emptyLabel}</Text>}
             renderItem={renderTurn}
+            onScroll={onScroll}
+            scrollEventThrottle={100}
             // follow the answer as it is written. Waiting a frame lets the new content be laid
             // out first, otherwise the list stops short of its last lines
-            onContentSizeChange={() =>
-              requestAnimationFrame(() => list.current?.scrollToEnd({ animated: false }))
-            }
+            onContentSizeChange={() => {
+              if (!atEnd.current) return;
+              requestAnimationFrame(() => list.current?.scrollToEnd({ animated: false }));
+            }}
           />
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {error && (
+            <Text
+              style={styles.error}
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+            >
+              {error}
+            </Text>
+          )}
 
           {/* the bottom space is on this row, not on the KeyboardAvoidingView: that view sets its
               own paddingBottom for the keyboard and would overwrite it */}
@@ -147,6 +177,8 @@ export function ChatView({ turns, loading, error, send }: ChatViewProps) {
               onPress={submit}
               disabled={loading}
               accessibilityLabel="Send"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: loading }}
               style={[sharedStyles.button, loading && styles.disabled]}
             >
               <Text style={sharedStyles.buttonText}>{sendLabel(loading)}</Text>

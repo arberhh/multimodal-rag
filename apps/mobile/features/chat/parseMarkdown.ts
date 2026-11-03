@@ -12,6 +12,8 @@ export type Span = { id: number; text: string; bold?: boolean; code?: boolean };
 const SEPARATOR = /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$/;
 const LIST_ITEM = /^\s*([-*]|\d+\.)\s+(.*)$/;
 const HEADING = /^#{1,6}\s+(.*)$/;
+// a list item or heading whose text hasn't arrived yet
+const BARE_MARKER = /^\s*([-*]|\d+\.|#{1,6})\s*$/;
 
 const isTableRow = (line: string) => line.trim().startsWith("|");
 
@@ -40,6 +42,9 @@ export function parseMarkdown(source: string): Block[] {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    // the last line is still being written: a lone marker waits for its text instead of showing
+    // as a paragraph for a moment
+    if (i === lines.length - 1 && BARE_MARKER.test(line)) break;
 
     if (isTableRow(line) && SEPARATOR.test(lines[i + 1]?.trim() ?? "")) {
       endParagraph();
@@ -81,7 +86,7 @@ export function parseMarkdown(source: string): Block[] {
 // Splits a line into plain, **bold** and `code` pieces.
 export function parseSpans(text: string): Span[] {
   return text
-    .split(/(\*\*[^*]+\*\*|`[^`]+`)/)
+    .split(/(\*\*.+?\*\*|`[^`]+`)/)
     .filter(Boolean)
     .map((part, id) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
