@@ -1,5 +1,7 @@
 import { Slot, Stack, useServerHeadInsertion } from "one";
 import { AppRegistry, Platform } from "react-native";
+import { ServerStatusBadge, ServerStatusProvider, useServer } from "~/features/server/ServerStatus";
+import { serverStatusMenu } from "~/features/server/serverStatusMenu";
 
 export default function Layout() {
   useServerHeadInsertion(() => {
@@ -25,13 +27,35 @@ export default function Layout() {
           <style>{"html, body { height: 100%; }"}</style>
         </head>
 
-        <Slot />
+        <ServerStatusProvider>
+          <Slot />
+        </ServerStatusProvider>
       </html>
     );
   }
 
   return (
+    <ServerStatusProvider>
+      <AppStack />
+    </ServerStatusProvider>
+  );
+}
+
+// The server status sits in the header of every screen. On iOS it's a native bar button with a
+// menu; Android headers have no native menu items, so there it's a view that checks again.
+function AppStack() {
+  const { status, retry } = useServer();
+
+  return (
     <Stack>
+      {Platform.OS === "ios" ? (
+        <Stack.Toolbar placement="right">{serverStatusMenu(status, retry)}</Stack.Toolbar>
+      ) : (
+        <Stack.Toolbar placement="right" asChild>
+          <ServerStatusBadge />
+        </Stack.Toolbar>
+      )}
+      {/* not a large title: the header can't see the SwiftUI list scroll, so it would cover it */}
       <Stack.Screen name="index" options={{ title: "RAG Chat" }} />
       <Stack.Screen name="documents" options={{ title: "My Documents" }} />
       <Stack.Screen name="chat" options={{ title: "Chat" }} />
