@@ -1,7 +1,8 @@
 import { One } from "one";
 import { useEffect, useReducer, useRef } from "react";
-import { getMessages, type Message } from "~/features/conversations/api";
-import { askQuestion, createConversation, type Source } from "./api";
+import type { Message, Source } from "@multimodal-rag/shared";
+import { getMessages } from "~/features/conversations/api";
+import { askQuestion, createConversation } from "./api";
 
 export type Turn = {
   question: string;
@@ -107,9 +108,8 @@ export function useChat(openId?: string) {
 
   useEffect(() => {
     if (!openId) return;
-    let current = true;
-    // still this chat: not closed, and New chat wasn't tapped while it loaded
-    const wanted = () => current && conversationId.current === openId;
+    // still this chat: New chat wasn't tapped while it loaded
+    const wanted = () => conversationId.current === openId;
     const open = async () => {
       try {
         const turns = toTurns(await getMessages(openId));
@@ -120,9 +120,6 @@ export function useChat(openId?: string) {
       }
     };
     open();
-    return () => {
-      current = false;
-    };
   }, [openId]);
 
   const send = async (draft: string) => {

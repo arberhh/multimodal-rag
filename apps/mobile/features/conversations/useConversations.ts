@@ -1,7 +1,8 @@
 import { useFocusEffect } from "one";
 import { useCallback, useState } from "react";
 import { confirmRemove } from "~/features/confirmRemove";
-import { type Conversation, deleteConversation, listConversations } from "./api";
+import type { ListedConversation as Conversation } from "@multimodal-rag/shared";
+import { deleteConversation, listConversations } from "./api";
 
 // The user's latest chats. Loaded again each time the screen comes into view, so a chat just
 // asked in moves to the top on the way back, and when the server can be reached again (enabled)
@@ -13,23 +14,17 @@ export function useConversations(limit: number, enabled = true) {
   useFocusEffect(
     useCallback(() => {
       if (!enabled) return;
-      let current = true;
       const load = async () => {
         try {
-          const latest = await listConversations(limit);
-          if (!current) return;
-          setConversations(latest);
+          setConversations(await listConversations(limit));
           setError(null);
         } catch (err) {
-          if (current) setError(err instanceof Error ? err.message : "Couldn't load your chats");
+          setError(err instanceof Error ? err.message : "Couldn't load your chats");
         } finally {
-          if (current) setLoaded(true);
+          setLoaded(true);
         }
       };
       load();
-      return () => {
-        current = false;
-      };
     }, [limit, enabled]),
   );
 

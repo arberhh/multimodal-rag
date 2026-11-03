@@ -1,7 +1,6 @@
+import type { MeResponse, NameBody, User } from "@multimodal-rag/shared";
 import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
-
-export type User = { id: string; name: string | null };
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -42,9 +41,9 @@ const plugin: FastifyPluginAsync = async (app) => {
     req.user = rows[0];
   });
 
-  app.get("/me", async (req) => ({ user: userOf(req) }));
+  app.get<{ Reply: MeResponse }>("/me", async (req) => ({ user: userOf(req) }));
 
-  app.put<{ Body: { name: string } }>(
+  app.put<{ Body: NameBody; Reply: MeResponse }>(
     "/me",
     {
       schema: {

@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { colors, sharedStyles } from "~/features/theme";
-import type { Document, DocumentStatus } from "./api";
+import type { Document, DocumentStatus } from "@multimodal-rag/shared";
 import { addPdfLabel, emptyLabel, formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 

@@ -11,6 +11,9 @@
     "apps/server": {
       "project": ["src/**/*.ts"],
       "ignoreDependencies": ["pino-pretty"]
+    },
+    "packages/shared": {
+      "project": ["src/**/*.ts"]
     }
   }
 }
