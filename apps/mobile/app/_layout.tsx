@@ -41,13 +41,16 @@ export default function Layout() {
   );
 }
 
+// the back button is the arrow alone, without the previous screen's name
+const screenOptions = { headerBackButtonDisplayMode: "minimal" } as const;
+
 // The server status sits in the header of every screen. On iOS it's a native bar button with a
 // menu; Android headers have no native menu items, so there it's a view that checks again.
 function AppStack() {
   const { status, retry } = useServer();
 
   return (
-    <Stack>
+    <Stack screenOptions={screenOptions}>
       {Platform.OS === "ios" ? (
         <Stack.Toolbar placement="right">{serverStatusMenu(status, retry)}</Stack.Toolbar>
       ) : (
