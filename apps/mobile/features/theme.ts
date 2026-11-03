@@ -8,6 +8,7 @@ export const colors = {
   connected: "#22c55e",
   muted: "#71717a",
   pending: "#a1a1aa",
+  surface: "#f4f4f5",
   unreachable: "#ef4444",
 };
 

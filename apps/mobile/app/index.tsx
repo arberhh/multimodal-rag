@@ -32,11 +32,18 @@ export default function Index() {
       {status === "connected" && (
         // asChild: on web a Link's own style loses its padding. The child's style must be
         // one object, because an array crashes on web
-        <Link href="/documents" asChild>
-          <Pressable style={sharedStyles.button}>
-            <Text style={sharedStyles.buttonText}>My Documents</Text>
-          </Pressable>
-        </Link>
+        <>
+          <Link href="/chat" asChild>
+            <Pressable style={sharedStyles.button}>
+              <Text style={sharedStyles.buttonText}>Chat</Text>
+            </Pressable>
+          </Link>
+          <Link href="/documents" asChild>
+            <Pressable style={sharedStyles.button}>
+              <Text style={sharedStyles.buttonText}>My Documents</Text>
+            </Pressable>
+          </Link>
+        </>
       )}
 
       {status === "unreachable" && (

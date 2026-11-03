@@ -4,8 +4,15 @@ import type { findPages } from "../search/index.js";
 // TODO: pick the model (extraction uses claude-haiku-5-5)
 const MODEL = "claude-sonnet-5-5";
 
-// TODO: write the prompt: answer only from the pages, cite them, say when the answer isn't there
-const SYSTEM = `answer only from pages, cite them, say when the answer isn't there`;
+// The formatting rule lists what the app can draw (apps/mobile/features/chat/parseMarkdown.ts)
+const SYSTEM = `You answer questions about the user's documents, using only the pages provided with each question.
+
+- If the answer isn't in the pages, say so plainly. Don't guess or use outside knowledge.
+- Say when the pages are unclear or contradict each other.
+- Cite the pages you use.
+- Give the answer first and keep it short. Add detail only if it helps.
+- Reply in the language of the question.
+- Format with only: **bold**, "- " bullets, numbered lists, "## " headings and markdown tables. Show each table once. No italics, links, code blocks or nested lists.`;
 
 type Page = Awaited<ReturnType<typeof findPages>>[number];
 type Message = { role: "user" | "assistant"; content: string };
