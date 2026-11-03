@@ -1,7 +1,8 @@
 import { One } from "one";
 import { useEffect, useState } from "react";
 import { confirmRemove } from "~/features/confirmRemove";
-import { deleteDocument, type Document, listDocuments, uploadPdf } from "./api";
+import type { Document } from "@multimodal-rag/shared";
+import { deleteDocument, listDocuments, uploadPdf } from "./api";
 
 const POLL_MS = 3000;
 

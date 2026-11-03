@@ -1,3 +1,4 @@
+import type { SearchResponse, SearchResult } from "@multimodal-rag/shared";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { pageContent } from "./content.js";
 import { type Embed, embedTexts } from "./embed.js";
@@ -20,7 +21,7 @@ export async function findPages(
   question: string,
   { user, limit = 5, document }: { user: string; limit?: number; document?: string },
   embed: Embed = embedTexts,
-) {
+): Promise<SearchResult[]> {
   const { vectors } = await embed([question], "query");
   const { rows } = await app.pg.query(SEARCH_SQL, [
     JSON.stringify(vectors[0]),
@@ -42,7 +43,7 @@ export const search: FastifyPluginAsync<{ embed?: Embed }> = async (
   app,
   { embed = embedTexts },
 ) => {
-  app.get<{ Querystring: { q: string; limit: number; document?: string } }>(
+  app.get<{ Querystring: { q: string; limit: number; document?: string }; Reply: SearchResponse }>(
     "/search",
     {
       schema: {

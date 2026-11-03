@@ -1,20 +1,12 @@
 import { Platform } from "react-native";
+import type { Document, DocumentResponse, DocumentsResponse } from "@multimodal-rag/shared";
 import { apiFetch } from "~/features/server/apiFetch";
-
-export type DocumentStatus = "processing" | "ready" | "failed";
-
-export type Document = {
-  id: string;
-  file_name: string;
-  size_bytes: number;
-  status: DocumentStatus;
-  created_at: string;
-};
 
 export async function listDocuments(): Promise<Document[]> {
   const res = await apiFetch("/uploads");
   if (!res.ok) throw new Error(`Couldn't load documents (${res.status})`);
-  return (await res.json()).docs;
+  const body: DocumentsResponse = await res.json();
+  return body.docs;
 }
 
 // the part of a DocumentPicker result we need
@@ -33,7 +25,8 @@ export async function uploadPdf(pdf: PickedFile): Promise<Document> {
   const res = await apiFetch("/uploads", { method: "POST", body: form });
   if (res.status === 413) throw new Error("That PDF is too big");
   if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-  return (await res.json()).doc;
+  const body: DocumentResponse = await res.json();
+  return body.doc;
 }
 
 export async function deleteDocument(id: string): Promise<void> {

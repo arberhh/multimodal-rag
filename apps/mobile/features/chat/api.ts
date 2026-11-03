@@ -1,14 +1,14 @@
+import type { AskBody, ConversationResponse, Source } from "@multimodal-rag/shared";
 import { apiFetch } from "~/features/server/apiFetch";
 import { serverUrl } from "~/features/server/config";
 import { deviceId } from "~/features/server/deviceId";
 import { parseEvents } from "./sse";
 
-export type Source = { documentId: string; fileName: string; page: number };
-
 export async function createConversation(): Promise<string> {
   const res = await apiFetch("/conversations", { method: "POST" });
   if (!res.ok) throw new Error(`Couldn't start the chat (${res.status})`);
-  return (await res.json()).conversation.id;
+  const body: ConversationResponse = await res.json();
+  return body.conversation.id;
 }
 
 // Asks a question; each piece of the answer goes to onText as it arrives.
@@ -40,10 +40,10 @@ export function askQuestion(
       handled = request.responseText.length;
       rest = left;
 
-      for (const { event, data } of events) {
-        if (event === "text") onText(data.text ?? "");
-        else if (event === "done") sources = data.sources ?? [];
-        else if (event === "error") failure = data.error;
+      for (const answer of events) {
+        if (answer.event === "text") onText(answer.data.text);
+        else if (answer.event === "done") sources = answer.data.sources;
+        else if (answer.event === "error") failure = answer.data.error;
       }
     };
 
@@ -71,6 +71,7 @@ export function askQuestion(
     request.onabort = () => reject(new Error(failure ?? "Stopped"));
     signal.addEventListener("abort", () => request.abort());
 
-    request.send(JSON.stringify({ question }));
+    const body: AskBody = { question };
+    request.send(JSON.stringify(body));
   });
 }

@@ -1,7 +1,8 @@
 import { useFocusEffect } from "one";
 import { useCallback, useState } from "react";
 import { confirmRemove } from "~/features/confirmRemove";
-import { type Conversation, deleteConversation, listConversations } from "./api";
+import type { ListedConversation as Conversation } from "@multimodal-rag/shared";
+import { deleteConversation, listConversations } from "./api";
 
 // The user's latest chats. Loaded again each time the screen comes into view, so a chat just
 // asked in moves to the top on the way back, and when the server can be reached again (enabled)
