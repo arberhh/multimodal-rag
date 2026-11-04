@@ -6,7 +6,27 @@
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
     { "key": "conversationId", "value": "" },
-    { "key": "documentId", "value": "" }
+    { "key": "documentId", "value": "" },
+    { "key": "deviceId", "value": "" }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "X-Device-Id" },
+      { "key": "value", "value": "{{deviceId}}" },
+      { "key": "in", "value": "header" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// the server knows the user by this id, so keep one for the whole collection",
+          "if (!pm.collectionVariables.get('deviceId')) pm.collectionVariables.set('deviceId', pm.variables.replaceIn('{{$guid}}'));"
+        ]
+      }
+    }
   ],
   "item": [
     {

@@ -7,6 +7,7 @@
 1. In Postman, choose **Import** and pick `postman/multimodal-rag.postman_collection.json`.
 2. Start the database and the server (`docker compose up -d`, then `pnpm dev:server`).
 3. The collection variable `baseUrl` is `http://localhost:3000`. Change it to test a server on another machine.
+4. Every request sends `X-Device-Id: {{deviceId}}`, set once on the collection. The first request makes a random `deviceId` if it's empty, so the collection is one user. Clear it to start over as a new user, or paste the app's id to see the app's documents and chats.
 
 ## Requests
 
