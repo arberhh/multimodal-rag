@@ -17,7 +17,7 @@ It's a pnpm monorepo:
 Two flows do all the work:
 
 1. **Adding a document.** The server saves the file and returns at once. Word files (`.doc`, `.docx`) are turned into a PDF first, with LibreOffice, and a Google Doc is fetched from Google as a PDF, so from here on every document is a PDF. In the background, Claude Haiku reads the whole PDF and writes out each page: its text, its tables, and its charts and pictures, with the values a chart plots. Voyage turns each page into a vector (a list of numbers that captures its meaning), and the pages are stored in Postgres.
-2. **Asking a question.** Voyage turns the question into a vector as well. Postgres finds the 5 pages closest in meaning, and Claude Sonnet answers using only those pages and cites the ones it used. The answer streams to the app as it's written.
+2. **Asking a question.** Voyage turns the question into a vector as well. Postgres finds the 5 pages closest in meaning, and Claude Sonnet answers using only those pages and cites the parts it used. The answer streams to the app as it's written, and tapping a source shows the part of the page it came from.
 
 Each install of the app is its own user. It makes a random id once, keeps it in the keychain (or localStorage on web), and sends it as `X-Device-Id` with every request. The server only ever shows a user their own documents and chats. This isn't sign-in: anyone with the id is that user.
 

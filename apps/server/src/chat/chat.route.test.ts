@@ -48,7 +48,14 @@ async function setup({
                 {
                   type: "text",
                   text: "Europe made $0.9 million.",
-                  citations: [{ type: "search_result_location", search_result_index: 0 }],
+                  citations: [
+                    {
+                      type: "search_result_location",
+                      search_result_index: 0,
+                      start_block_index: 0,
+                      end_block_index: 1,
+                    },
+                  ],
                 },
               ],
             };
@@ -105,7 +112,14 @@ describe("chat routes", () => {
 
     assert.equal(res.statusCode, 200);
     assert.match(res.headers["content-type"] as string, /text\/event-stream/);
-    const sources = [{ documentId: docId, fileName: "quarterly-report.pdf", page: 2 }];
+    const sources = [
+      {
+        documentId: docId,
+        fileName: "quarterly-report.pdf",
+        page: 2,
+        quote: "| Europe | 0.8 | 0.9 |",
+      },
+    ];
     assert.deepEqual(events(res.body), [
       ["text", { text: "Europe made " }],
       ["text", { text: "$0.9 million." }],

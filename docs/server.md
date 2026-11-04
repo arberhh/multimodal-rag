@@ -53,7 +53,7 @@ event: text
 data: {"text":"was **…** (p. 3)."}
 
 event: done
-data: {"sources":[{"documentId":"…","fileName":"quarterly-report.pdf","page":3}]}
+data: {"sources":[{"documentId":"…","fileName":"quarterly-report.pdf","page":3,"quote":"## 3. Users\n\nMonthly active users reached 25 thousand in June."}]}
 ```
 
 If answering fails, the last event is `error` with `{ "error": "Could not answer the question" }` instead of `done`. If the client closes the connection before the end, the server aborts Claude's stream and saves only the question.
@@ -86,12 +86,12 @@ Every document is stored as `uploads/<id>.pdf`, so reading, searching and removi
 
 1. Check the conversation exists, read its history, and save the question.
 2. **Find pages.** `findPages` embeds the question with Voyage (`input_type: query`), and pgvector returns the 5 nearest pages by cosine distance. The search uses an HNSW index. For a follow-up like "and in Q3?", it searches with the previous question too, since the follow-up has no topic of its own. Pass `document` to search one document only.
-3. **Answer.** **Claude Sonnet** (`claude-sonnet-5-5`) gets the history, then each page as a `search_result` block with citations on, then the question. The system prompt tells it to:
+3. **Answer.** **Claude Sonnet** (`claude-sonnet-5-5`) gets the history, then each page as a `search_result` block with citations on, then the question. A page goes in as several blocks: each paragraph of its text (with the heading above it), each table and each figure. A citation names the blocks it used, so it points to part of a page, not the whole page. The system prompt tells it to:
    - answer only from the pages, and say so when the answer isn't there;
    - cite the pages it used;
    - keep the answer short;
    - use only the markdown the app can draw: bold, bullets, numbered lists, `##` headings and tables.
-4. **Stream.** Each piece of text goes to the app as a `text` event. At the end, the pages Claude actually cited become the `sources`. They're saved with the answer and sent in `done`.
+4. **Stream.** Each piece of text goes to the app as a `text` event. At the end, the pages Claude actually cited become the `sources`, each with a `quote`: its cited blocks, in page order, as markdown. They're saved with the answer and sent in `done`. Answers saved before quotes existed have sources without one.
 
 ## Data
 
@@ -137,7 +137,7 @@ erDiagram
     uuid conversation_id FK
     text role "user or assistant"
     text content
-    jsonb sources "the cited pages, answers only"
+    jsonb sources "the cited pages and quotes, answers only"
     timestamptz created_at
   }
 ```

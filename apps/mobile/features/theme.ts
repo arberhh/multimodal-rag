@@ -15,6 +15,8 @@ export const colors = {
   muted: system("secondaryLabel", "#71717a"),
   onAccent: "#fff",
   pending: system("systemGray", "#a1a1aa"),
+  // dims the screen behind a sheet
+  scrim: "rgba(0, 0, 0, 0.3)",
   surface: system("secondarySystemBackground", "#f4f4f5"),
   text: system("label", "#18181b"),
   unreachable: system("systemRed", "#ef4444"),

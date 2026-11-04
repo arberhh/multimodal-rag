@@ -34,7 +34,7 @@ flowchart LR
 - **Chat:**
   - With no messages, it shows three sample questions; tapping one asks it.
   - The message box grows to five lines. Its ↑ button becomes ■ Stop while an answer streams, and a stopped answer keeps its text.
-  - Each answer shows its source pages as pills, with Copy and Share underneath.
+  - Each answer shows its source pages as pills, with Copy and Share underneath. Tapping a pill opens a sheet with the part of that page the answer used, drawn like an answer, so its tables stay tables. On iOS it's SwiftUI's sheet at half height, which drags to full; on Android and web it's a React Native modal with Done.
   - A failed question gets **Try again**.
   - **New chat** in the header starts a new conversation.
   - Opened from a saved chat (`/chat?id=…`), it loads that chat's messages and carries on in it. If they fail to load, it takes no questions and offers **Try again**.
@@ -58,6 +58,7 @@ features/
     useChat.ts           the conversation: a reducer, plus send, stop, retry, startOver
     api.ts               createConversation and askQuestion (streams the answer)
     sse.ts               reads server-sent events from the text received so far
+    SourceSheet.tsx      the part of a page a source used, in a sheet
     parseMarkdown.ts     turns the answer into blocks (headings, lists, tables) while it streams
     Markdown.tsx         draws those blocks
     ChatView.tsx         the screen
@@ -180,6 +181,7 @@ To check a change in the running app, follow the `run-app` skill in `.claude/ski
 ## Known gaps
 
 - **Release builds fail.** They fail while bundling the JavaScript: rolldown reports "UMD and IIFE are not supported for code-splitting builds". This only happens with `app/_layout.tsx` included, and the cause isn't found yet. Debug builds work.
-- **Android hasn't run on a device.** The Compose views have only been typechecked.
+- **Android has only run on the emulator,** not on a phone. It warns that the debug build isn't 16 KB page aligned, and runs it in a compatibility mode.
 - **Android and web keep the light colors** in dark mode.
-- **Sources don't open their page yet.**
+- **A source shows the part it used, not the page itself.** The quote is the text the server read from the page, so it doesn't show the page's layout.
+- **The Android source sheet isn't Compose.** It's a React Native modal, because a Compose sheet holding React Native views hasn't been tried on a device.
