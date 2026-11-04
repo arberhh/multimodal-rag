@@ -46,15 +46,17 @@ export function useDocuments() {
     return () => clearInterval(timer);
   }, [preparing]);
 
-  // adds the document the server makes, newest first like the server's list
+  // adds the document the server makes, newest first like the server's list; says if it worked
   const add = async (upload: () => Promise<Document>) => {
     setError(null);
     setUploading(true);
     try {
       const doc = await upload();
       setDocs((current) => [doc, ...current]);
+      return true;
     } catch (err) {
       setError((err as Error).message);
+      return false;
     } finally {
       setUploading(false);
     }
@@ -66,18 +68,22 @@ export function useDocuments() {
     await add(() => uploadFile(picked.assets[0]));
   };
 
+  // adds a Google Doc from its share link; says if it worked
+  const addGoogleDocLink = async (url: string | null | undefined) => {
+    const link = url?.trim();
+    return link ? add(() => addGoogleDoc(link)) : false;
+  };
+
   // asks for a share link: a native prompt on iOS and the browser's on web. Android has no text
-  // prompt, so there it's undefined
+  // prompt, so there it's undefined, and its screen has a field for the link instead
   const askForGoogleDoc = () => {
-    const addLink = (url: string | null | undefined) => {
-      const link = url?.trim();
-      if (link) add(() => addGoogleDoc(link));
-    };
-    if (One.platform === "web")
-      return addLink(window.prompt(`${googleDocTitle}\n\n${googleDocMessage}`));
+    if (One.platform === "web") {
+      addGoogleDocLink(window.prompt(`${googleDocTitle}\n\n${googleDocMessage}`));
+      return;
+    }
     Alert.prompt(googleDocTitle, googleDocMessage, [
       { text: "Cancel", style: "cancel" },
-      { text: "Add", onPress: (value?: string) => addLink(value) },
+      { text: "Add", onPress: (value?: string) => addGoogleDocLink(value) },
     ]);
   };
 
@@ -99,6 +105,7 @@ export function useDocuments() {
     error,
     addFile,
     addGoogleDoc: One.platform === "android" ? undefined : askForGoogleDoc,
+    addGoogleDocLink,
     removeDocument,
   };
 }

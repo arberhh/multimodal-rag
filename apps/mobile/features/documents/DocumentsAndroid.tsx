@@ -1,8 +1,18 @@
 import { One } from "one";
+import { useState } from "react";
 import { StyleSheet } from "react-native";
 import { colors } from "~/features/theme";
 import type { Document } from "@multimodal-rag/shared";
-import { addFileLabel, emptyLabel, formatSize, statusLabel } from "./labels";
+import {
+  addFileLabel,
+  addGoogleDocLabel,
+  emptyLabel,
+  formatSize,
+  googleDocLinkLabel,
+  googleDocMessage,
+  pasteLabel,
+  statusLabel,
+} from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 
 // `style` only works on the root view; nested Compose views take composeStyle
@@ -11,9 +21,24 @@ export function DocumentsAndroid({
   uploading,
   error,
   addFile,
+  addGoogleDocLink,
   removeDocument,
 }: DocumentsViewProps) {
-  const { Button, LazyColumn, Text } = One.Android;
+  const { Button, LazyColumn, Row, Text, TextField } = One.Android;
+  // Android has no text prompt, so the Google Docs link is typed or pasted into a field here
+  const [link, setLink] = useState("");
+
+  const paste = async () => {
+    try {
+      setLink(await One.Clipboard.getString());
+    } catch {
+      // nothing to paste, and the field stays as it was
+    }
+  };
+
+  const addLink = async () => {
+    if (await addGoogleDocLink(link)) setLink("");
+  };
 
   return (
     <LazyColumn style={styles.list} contentPadding={listPadding}>
@@ -24,6 +49,29 @@ export function DocumentsAndroid({
         onPress={addFile}
         composeStyle={composeStyles.button}
       />
+
+      <TextField
+        text={link}
+        onTextChange={setLink}
+        label={googleDocLinkLabel}
+        placeholder="https://docs.google.com/document/d/…"
+        variant="outlined"
+        keyboardType="url"
+        imeAction="done"
+        onSubmit={addLink}
+        disabled={uploading}
+        composeStyle={composeStyles.field}
+      />
+      <Text text={googleDocMessage} composeStyle={composeStyles.hint} />
+      <Row spacing={8} composeStyle={composeStyles.linkButtons}>
+        <Button label={pasteLabel} icon="content_paste" variant="outlined" onPress={paste} />
+        <Button
+          label={addGoogleDocLabel}
+          icon="add_link"
+          disabled={uploading || link.trim() === ""}
+          onPress={addLink}
+        />
+      </Row>
 
       {error && <Text text={error} composeStyle={composeStyles.error} />}
       {docs.length === 0 && <Text text={emptyLabel} composeStyle={composeStyles.message} />}
@@ -72,6 +120,9 @@ const listPadding = { top: 16, bottom: 16 };
 const composeStyles = {
   button: { paddingLeft: 16, paddingRight: 16, fillMaxWidth: true },
   error: { padding: 16, foregroundColor: colors.unreachable },
+  field: { paddingLeft: 16, paddingRight: 16, paddingTop: 16, fillMaxWidth: true },
+  hint: { paddingLeft: 16, paddingRight: 16, paddingTop: 4, foregroundColor: colors.muted },
+  linkButtons: { paddingLeft: 16, paddingRight: 16, paddingTop: 8 },
   failed: { foregroundColor: colors.unreachable },
   message: { padding: 16 },
   spinner: { width: 24, height: 24 },
