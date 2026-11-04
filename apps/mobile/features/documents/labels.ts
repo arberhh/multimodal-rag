@@ -11,6 +11,8 @@ export const addFileLabel = (uploading: boolean) =>
 
 export const addGoogleDocLabel = "Add Google Doc";
 export const googleDocTitle = "Add a Google Doc";
+export const googleDocLinkLabel = "Google Docs link";
+export const pasteLabel = "Paste";
 export const googleDocMessage =
   'Paste its share link. The doc must be shared as "Anyone with the link".';
 
