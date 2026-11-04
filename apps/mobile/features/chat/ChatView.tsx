@@ -226,7 +226,8 @@ export function ChatView({
     >
       <ChatHeader canStartOver={turns.length > 0} startOver={startOver} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        // Android too: it draws edge to edge, so its window no longer shrinks for the keyboard
+        behavior={One.platform === "web" ? undefined : "padding"}
         keyboardVerticalOffset={top}
         style={styles.page}
       >
@@ -313,6 +314,8 @@ export function ChatView({
                 placeholder="Ask about your documents"
                 placeholderTextColor={colors.muted}
                 accessibilityLabel="Question"
+                // the screen is for asking, so it opens ready to type
+                autoFocus
                 style={One.platform === "web" ? styles.inputWeb : styles.input}
                 multiline
                 // a browser's textarea starts two lines tall; the page's CSS grows it from one
