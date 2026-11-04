@@ -15,7 +15,9 @@ export type Document = {
 };
 
 // a page an answer came from
-export type Source = { documentId: string; fileName: string; page: number };
+// a page an answer used. quote is the part of the page it used, as markdown; answers saved before
+// quotes existed have none
+export type Source = { documentId: string; fileName: string; page: number; quote?: string };
 
 export type Conversation = {
   id: string;
@@ -36,7 +38,7 @@ export type Message = {
 };
 
 // a page that matches a search, best first
-export type SearchResult = Source & { score: number; content: string };
+export type SearchResult = Omit<Source, "quote"> & { score: number; content: string };
 
 // ---- request bodies
 
