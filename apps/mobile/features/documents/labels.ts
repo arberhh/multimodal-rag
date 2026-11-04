@@ -6,7 +6,13 @@ export const statusLabel: Record<DocumentStatus, string> = {
   failed: "Couldn't read",
 };
 
-export const addPdfLabel = (uploading: boolean) => (uploading ? "Uploading…" : "Add PDF");
+export const addFileLabel = (uploading: boolean) =>
+  uploading ? "Uploading…" : "Add PDF or Word file";
+
+export const addGoogleDocLabel = "Add Google Doc";
+export const googleDocTitle = "Add a Google Doc";
+export const googleDocMessage =
+  'Paste its share link. The doc must be shared as "Anyone with the link".';
 
 export const emptyLabel = "No documents yet.";
 
