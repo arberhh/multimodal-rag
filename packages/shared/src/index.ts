@@ -42,6 +42,7 @@ export type SearchResult = Source & { score: number; content: string };
 
 export type AskBody = { question: string; document?: string };
 export type NameBody = { name: string };
+export type GoogleDocBody = { url: string }; // a Google Docs share link
 
 // ---- responses, one per route
 

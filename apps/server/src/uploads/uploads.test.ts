@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
+import { basename, join } from "node:path";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import Fastify from "fastify";
 import { uploads } from "./index.js";
@@ -23,11 +23,24 @@ function setup(query: (call: Call) => unknown) {
   return { app, calls };
 }
 
-const pdf = (name = "doc.pdf") => {
+const upload = (name: string, content: BlobPart) => {
   const form = new FormData();
-  form.append("file", new Blob(["%PDF-1.4 test"], { type: "application/pdf" }), name);
+  form.append("file", new Blob([content]), name);
   return form;
 };
+const pdf = (name = "doc.pdf") => upload(name, "%PDF-1.4 test");
+// a .docx is a zip file, and .doc an older Office file: these are their first bytes
+const docx = (name = "notes.docx") => upload(name, new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2]));
+const doc = (name = "old.doc") =>
+  upload(name, new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 1]));
+
+// stands in for LibreOffice: writes <outDir>/<the input's name>.pdf, as soffice does
+const toPdf = async (input: string, outDir: string) => {
+  await writeFile(join(outDir, basename(input).replace(/\.\w+$/, ".pdf")), "%PDF-1.4 converted");
+};
+const insertRow = ({ values: [id, file_name, size_bytes] }: Call) => ({
+  rows: [{ id, file_name, size_bytes, status: "processing" }],
+});
 
 describe("uploads", () => {
   const originalCwd = process.cwd();
@@ -123,6 +136,164 @@ describe("uploads", () => {
 
       assert.equal(res.statusCode, 500);
       assert.deepEqual(await readdir(join(dir, "uploads")), []);
+      await app.close();
+    });
+  });
+
+  describe("POST /uploads with a Word file", () => {
+    for (const [kind, form] of [
+      ["docx", docx("notes.docx")],
+      ["doc", doc("notes.doc")],
+    ] as const) {
+      it(`turns a .${kind} into a PDF and keeps only the PDF`, async () => {
+        const inputs: string[] = [];
+        const { app } = setup(insertRow);
+        await app.register(uploads, {
+          toPdf: async (input, outDir) => {
+            inputs.push(input);
+            await toPdf(input, outDir);
+          },
+        });
+
+        const res = await app.inject({ method: "POST", url: "/uploads", payload: form });
+
+        assert.equal(res.statusCode, 200);
+        const { id, file_name } = res.json().doc;
+        assert.equal(file_name, `notes.${kind}`);
+        assert.deepEqual(inputs, [`uploads/${id}.${kind}`]);
+        assert.deepEqual(await readdir(join(dir, "uploads")), [`${id}.pdf`]);
+        await app.close();
+      });
+    }
+
+    it("returns 422 and keeps nothing when the Word file can't be turned into a PDF", async () => {
+      const { app, calls } = setup(insertRow);
+      await app.register(uploads, {
+        toPdf: async () => {
+          throw new Error("soffice failed");
+        },
+      });
+
+      const res = await app.inject({ method: "POST", url: "/uploads", payload: docx() });
+
+      assert.equal(res.statusCode, 422);
+      assert.deepEqual(res.json(), { error: "Couldn't read this Word file" });
+      assert.deepEqual(await readdir(join(dir, "uploads")), []);
+      assert.equal(calls.length, 0);
+      await app.close();
+    });
+
+    it("refuses anything that isn't a PDF or a Word file, whatever it's called", async () => {
+      const { app, calls } = setup(insertRow);
+      await app.register(uploads, { toPdf });
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/uploads",
+        payload: upload("fake.pdf", "just some text"),
+      });
+
+      assert.equal(res.statusCode, 415);
+      assert.deepEqual(await readdir(join(dir, "uploads")), []);
+      assert.equal(calls.length, 0);
+      await app.close();
+    });
+  });
+
+  describe("POST /uploads/google", () => {
+    const docId = "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789";
+    const link = `https://docs.google.com/document/d/${docId}/edit?usp=sharing`;
+
+    // stands in for fetch, answering with what Google sends
+    const google = (body: string, headers: Record<string, string>, status = 200) => {
+      const urls: string[] = [];
+      const fetchGoogle: typeof fetch = async (url) => {
+        urls.push(String(url));
+        return new Response(body, { status, headers });
+      };
+      return { urls, fetchGoogle };
+    };
+    const shared = {
+      "content-type": "application/pdf",
+      "content-disposition": `attachment; filename="Q3 plan.pdf"; filename*=UTF-8''Q3%20plan.pdf`,
+    };
+
+    it("saves a shared doc's PDF export, named after the doc", async () => {
+      const { urls, fetchGoogle } = google("%PDF-1.4 from google", shared);
+      const { app, calls } = setup(insertRow);
+      await app.register(uploads, { fetchGoogle });
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/uploads/google",
+        payload: { url: link },
+      });
+
+      assert.equal(res.statusCode, 200);
+      const { id, file_name } = res.json().doc;
+      assert.equal(file_name, "Q3 plan.pdf");
+      assert.deepEqual(urls, [`https://docs.google.com/document/d/${docId}/export?format=pdf`]);
+      assert.deepEqual(await readdir(join(dir, "uploads")), [`${id}.pdf`]);
+      assert.deepEqual(calls[0].values, [
+        id,
+        "Q3 plan.pdf",
+        "%PDF-1.4 from google".length,
+        testUser.id,
+      ]);
+      await app.close();
+    });
+
+    it("says to share the doc when Google answers with its sign-in page", async () => {
+      const { fetchGoogle } = google("<html>Sign in</html>", { "content-type": "text/html" });
+      const { app, calls } = setup(insertRow);
+      await app.register(uploads, { fetchGoogle });
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/uploads/google",
+        payload: { url: link },
+      });
+
+      assert.equal(res.statusCode, 422);
+      assert.match(res.json().error, /Anyone with the link/);
+      assert.deepEqual(await readdir(join(dir, "uploads")), []);
+      assert.equal(calls.length, 0);
+      await app.close();
+    });
+
+    it("returns 400 for a link that isn't a Google Doc, without fetching it", async () => {
+      const { urls, fetchGoogle } = google("%PDF-1.4", shared);
+      const { app } = setup(insertRow);
+      await app.register(uploads, { fetchGoogle });
+
+      for (const url of [
+        "https://example.com/document/d/abc",
+        "http://localhost:3000/health",
+        "",
+      ]) {
+        // eslint-disable-next-line no-await-in-loop
+        const res = await app.inject({ method: "POST", url: "/uploads/google", payload: { url } });
+        assert.equal(res.statusCode, 400, url);
+      }
+      assert.equal(urls.length, 0);
+      await app.close();
+    });
+
+    it("returns 502 when Google can't be reached", async () => {
+      const { app } = setup(insertRow);
+      await app.register(uploads, {
+        fetchGoogle: async () => {
+          throw new TypeError("fetch failed");
+        },
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/uploads/google",
+        payload: { url: link },
+      });
+
+      assert.equal(res.statusCode, 502);
       await app.close();
     });
   });
