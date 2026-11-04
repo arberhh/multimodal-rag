@@ -19,6 +19,8 @@ Two flows do all the work:
 1. **Adding a document.** The server saves the file and returns at once. Word files (`.doc`, `.docx`) are turned into a PDF first, with LibreOffice, and a Google Doc is fetched from Google as a PDF, so from here on every document is a PDF. In the background, Claude Haiku reads the whole PDF and writes out each page: its text, its tables, and its charts and pictures, with the values a chart plots. Voyage turns each page into a vector (a list of numbers that captures its meaning), and the pages are stored in Postgres.
 2. **Asking a question.** Voyage turns the question into a vector as well. Postgres finds the 5 pages closest in meaning, and Claude Sonnet answers using only those pages and cites the ones it used. The answer streams to the app as it's written.
 
+Each install of the app is its own user. It makes a random id once, keeps it in the keychain (or localStorage on web), and sends it as `X-Device-Id` with every request. The server only ever shows a user their own documents and chats. This isn't sign-in: anyone with the id is that user.
+
 ## System design
 
 Left to right: each screen, the requests it sends, the server code that handles them, and the models and data behind them.
@@ -30,6 +32,7 @@ flowchart LR
     Home["Home"]
     Docs["My Documents"]
     Chat["Chat"]
+    Chats["Chats"]
   end
 
   subgraph Requests["Requests"]
@@ -38,6 +41,8 @@ flowchart LR
     R2["POST /uploads<br/>POST /uploads/google<br/>GET /uploads<br/>DELETE /uploads/:id"]
     R3["POST /conversations"]
     R4["POST /conversations/:id/messages<br/>streams text, then done"]
+    R5["GET /conversations<br/>DELETE /conversations/:id"]
+    R6["GET /me<br/>PUT /me"]
   end
 
   subgraph Server["Server (Fastify)"]
@@ -46,6 +51,7 @@ flowchart LR
     Uploads["uploads"]
     Process["processDocument<br/>in the background"]
     Answer["chat: findPages,<br/>then answerQuestion"]
+    Users["users: X-Device-Id<br/>to a user, on every request"]
   end
 
   subgraph Back["Models and data"]
@@ -53,7 +59,7 @@ flowchart LR
     Haiku["Claude Haiku<br/>reads each page"]
     Voyage["Voyage voyage-3.5<br/>vectors"]
     Sonnet["Claude Sonnet<br/>writes the answer"]
-    DB[("Postgres + pgvector<br/>documents, document_pages,<br/>conversations, messages")]
+    DB[("Postgres + pgvector<br/>users, documents, document_pages,<br/>conversations, messages")]
     Files[/"uploads/&lt;id&gt;.pdf"/]
   end
 
@@ -61,8 +67,12 @@ flowchart LR
   Docs --> R2 --> Uploads
   Chat --> R3 --> Answer
   Chat --> R4 --> Answer
+  Home --> R5
+  Chats --> R5 --> Answer
+  Home --> R6 --> Users
 
   Health --> DB
+  Users --> DB
   Uploads --> Files
   Uploads --> DB
   Uploads -. "starts" .-> Process
@@ -155,6 +165,8 @@ pnpm run:web             # starts the app's dev server and opens http://localhos
 `.env` is read by both `docker-compose.yml` and the server, so the database settings can't drift apart.
 
 For iOS or Android, and for running on a phone, see [docs/app.md](docs/app.md).
+
+To check a change in the running app (the API with curl, web with Playwright, iOS on the simulator), follow the `run-app` skill in [.claude/skills/run-app](.claude/skills/run-app/SKILL.md).
 
 ## Checks
 

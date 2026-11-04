@@ -8,9 +8,13 @@ export default defineConfig({
         defaultRenderMode: "spa",
       },
 
+      // ragchat:///chat?id=… opens that screen, for links and for driving the app in a check
+      router: { linking: { scheme: "ragchat" } },
+
       native: {
         app: {
           name: "RagChat",
+          scheme: "ragchat",
           icon: {
             source: "./public/app-icon.png",
             backgroundColor: "#000000",

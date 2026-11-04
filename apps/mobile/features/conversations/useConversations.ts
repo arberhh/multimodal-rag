@@ -1,5 +1,5 @@
 import { useFocusEffect } from "one";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { confirmRemove } from "~/features/confirmRemove";
 import type { ListedConversation as Conversation } from "@multimodal-rag/shared";
 import { deleteConversation, listConversations } from "./api";
@@ -11,22 +11,22 @@ export function useConversations(limit: number, enabled = true) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!enabled) return;
-      const load = async () => {
-        try {
-          setConversations(await listConversations(limit));
-          setError(null);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : "Couldn't load your chats");
-        } finally {
-          setLoaded(true);
-        }
-      };
-      load();
-    }, [limit, enabled]),
-  );
+  // One's useFocusEffect takes its deps here, unlike React Navigation's: it runs again when they
+  // change, not when the function does
+  useFocusEffect(() => {
+    if (!enabled) return;
+    const load = async () => {
+      try {
+        setConversations(await listConversations(limit));
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't load your chats");
+      } finally {
+        setLoaded(true);
+      }
+    };
+    load();
+  }, [limit, enabled]);
 
   const remove = (conversation: Conversation) => {
     confirmRemove(`"${conversation.title}"`, async () => {

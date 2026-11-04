@@ -13,7 +13,9 @@ jest.mock("one", () => ({
   One: { platform: "web", Storage: { getItem: () => "test-device", setItem() {} } },
   useRouter: () => ({ push: mockPush }),
   // a test has one screen, always in view
-  useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
+  // like One's: it runs again when the deps change, not when the effect does
+  useFocusEffect: (effect: () => void, deps: unknown[] = []) =>
+    require("react").useEffect(effect, deps),
 }));
 
 const mockFetch = jest.fn();

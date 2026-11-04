@@ -22,11 +22,24 @@ It listens on `0.0.0.0`, so a phone on the same network can reach it. The port i
 | `DELETE` | `/uploads/:id`                | My Documents  | Removes the document, its pages and its file. 204, or 404 if it doesn't exist               |
 | `POST`   | `/conversations`              | Chat          | Starts a conversation. 201 `{ conversation }`                                               |
 | `POST`   | `/conversations/:id/messages` | Chat          | Answers `{ question, document? }` as a stream of server-sent events                         |
-| `GET`    | `/conversations/:id/messages` | —             | The conversation's messages, in order, with the sources of each answer                      |
+| `GET`    | `/conversations/:id/messages` | Chat          | The conversation's messages, in order, with the sources of each answer                      |
+| `GET`    | `/conversations?limit=`       | Home, Chats   | The user's chats that have a question, latest first (50 by default, at most 100)            |
+| `DELETE` | `/conversations/:id`          | Chats         | Removes the chat and its messages. 204, or 404 if it isn't the user's                       |
 | `GET`    | `/search?q=&limit=&document=` | — (debugging) | The pages closest in meaning to `q`, with their scores                                      |
 | `GET`    | `/extract/:id`                | — (debugging) | What Claude read from each page of a document                                               |
+| `GET`    | `/me`                         | Home          | `{ user }`: the user's id and name                                                          |
+| `PUT`    | `/me`                         | Home          | Sets the name from `{ name }`, trimmed, 1 to 60 characters                                  |
 
 Ids are UUIDs. An id that isn't a UUID gets a 400 from the route schema, rather than a 500 from Postgres.
+
+### Users
+
+Every route but `/health` needs an `X-Device-Id` header: the random UUID each install of the app makes once and keeps. Without one, or with one that isn't a UUID, the answer is 401.
+
+- **The `users` plugin** (`src/users/index.ts`) runs before every route. It finds the user by device id with a plain read, so the app's polling writes nothing, and creates the user on an install's first request. Routes read it with `userOf(req)`.
+- **Every query is scoped by `user_id`**, including the search. Someone else's document or chat answers 404, the same as one that doesn't exist, so an id gives nothing away.
+- **This isn't sign-in.** Anyone who knows a device id is that user. Documents and chats from before users existed have no owner, so no one sees them.
+- **Search stays complete per user.** pgvector filters by user after its index scan, so the server turns on `hnsw.iterative_scan` for every connection. Without it, a user whose pages aren't among the 40 nearest overall would get few or no results.
 
 ### The answer stream
 
@@ -84,11 +97,21 @@ Every document is stored as `uploads/<id>.pdf`, so reading, searching and removi
 
 ```mermaid
 erDiagram
+  users ||--o{ documents : "owns"
+  users ||--o{ conversations : "owns"
   documents ||--o{ document_pages : "has"
   conversations ||--o{ messages : "has"
 
+  users {
+    uuid id PK
+    text device_id "unique, sent as X-Device-Id"
+    text name
+    timestamptz created_at
+  }
+
   documents {
     uuid id PK
+    uuid user_id FK
     text file_name
     integer size_bytes
     text status "processing, ready or failed"
@@ -104,8 +127,10 @@ erDiagram
   }
   conversations {
     uuid id PK
-    text title
+    uuid user_id FK
+    text title "the first question, cut short"
     timestamptz created_at
+    timestamptz updated_at "the latest question"
   }
   messages {
     bigint id PK
@@ -117,7 +142,7 @@ erDiagram
   }
 ```
 
-- **Deletes cascade.** Deleting a document deletes its pages, and deleting a conversation deletes its messages.
+- **Deletes cascade.** Deleting a user deletes their documents and chats, deleting a document deletes its pages, and deleting a conversation deletes its messages.
 - **Files live on disk.** Each document is saved as `uploads/<id>.pdf`, named with a random id so the client's file name never decides where the server writes. A Word file is only on disk while it's being turned into a PDF.
 - **Migrations** live in `migrations/` and are applied with Postgrator, which records them in the `migrations` table. Never edit a migration that has already been applied; add a new one.
 - **Browsing the tables:** `docker compose up -d` also starts a read-only [pgweb](http://localhost:8082).
@@ -153,7 +178,7 @@ Node's test runner with `tsx`. Claude, Voyage, LibreOffice and Google are replac
 
 ## Known gaps
 
-- **There are no users or auth.** The `users` table from the first migration is unused, and every client sees every document.
+- **Users aren't signed in.** A device id works like a password that never changes, and a new install is a new user with nothing in it.
 - **A retried question is saved twice.** The question is saved before answering, so when an answer fails and the user taps Try again, the conversation's history holds it twice.
 - **The comment in migration 006 is wrong.** It says the vectors come from `voyage-4`, but the code uses `voyage-3.5`. Both return 1024 numbers.
 - **The app polls for status.** It asks again every 3 s while a document is being read, because the server can't tell it when the document is done.
