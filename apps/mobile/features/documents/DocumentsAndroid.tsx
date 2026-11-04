@@ -2,7 +2,7 @@ import { One } from "one";
 import { StyleSheet } from "react-native";
 import { colors } from "~/features/theme";
 import type { Document } from "@multimodal-rag/shared";
-import { addPdfLabel, emptyLabel, formatSize, statusLabel } from "./labels";
+import { addFileLabel, emptyLabel, formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 
 // `style` only works on the root view; nested Compose views take composeStyle
@@ -10,30 +10,30 @@ export function DocumentsAndroid({
   docs,
   uploading,
   error,
-  addPdf,
-  removePdf,
+  addFile,
+  removeDocument,
 }: DocumentsViewProps) {
   const { Button, LazyColumn, Text } = One.Android;
 
   return (
     <LazyColumn style={styles.list} contentPadding={listPadding}>
       <Button
-        label={addPdfLabel(uploading)}
+        label={addFileLabel(uploading)}
         icon="add"
         disabled={uploading}
-        onPress={addPdf}
+        onPress={addFile}
         composeStyle={composeStyles.button}
       />
 
       {error && <Text text={error} composeStyle={composeStyles.error} />}
       {docs.length === 0 && <Text text={emptyLabel} composeStyle={composeStyles.message} />}
 
-      {docs.map((doc) => renderDocument(doc, removePdf))}
+      {docs.map((doc) => renderDocument(doc, removeDocument))}
     </LazyColumn>
   );
 }
 
-function renderDocument(doc: Document, removePdf: DocumentsViewProps["removePdf"]) {
+function renderDocument(doc: Document, removeDocument: DocumentsViewProps["removeDocument"]) {
   const { CircularProgressIndicator, Icon, IconButton, ListItem, Row, Text } = One.Android;
 
   return (
@@ -54,7 +54,7 @@ function renderDocument(doc: Document, removePdf: DocumentsViewProps["removePdf"
               composeStyle={doc.status === "failed" ? composeStyles.failed : undefined}
             />
           )}
-          <IconButton onClick={() => removePdf(doc)}>
+          <IconButton onClick={() => removeDocument(doc)}>
             <Icon name="delete" />
           </IconButton>
         </Row>

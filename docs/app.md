@@ -30,7 +30,7 @@ flowchart LR
   - On Android it's a dot and a word that check again when pressed.
   - On web it sits on the home page.
 - **Home** says what the app is for, and shows Chat, All chats and My Documents as rows. The rows are greyed out with a note while the server can't be reached. Below them are the 5 latest chats, and **Your name**, which asks for a name with a native prompt on iOS and the browser's on web (Android has no text prompt, so the row isn't there).
-- **My Documents** adds a PDF with the system file picker and lists every document with its size and status. While any document is still being read, it checks the list again every 3 seconds. A swipe (iOS) or the trash button (Android and web) removes a document after a confirm.
+- **My Documents** adds a PDF or Word file with the system file picker, or a Google Doc from its share link, and lists every document with its size and status. The link is asked for with a native prompt on iOS and the browser's on web; Android has no text prompt, so it has no Google Doc button yet. When the server refuses a file, the screen shows its reason, such as a doc that isn't shared. While any document is still being read, it checks the list again every 3 seconds. A swipe (iOS) or the trash button (Android and web) removes a document after a confirm.
 - **Chat:**
   - With no messages, it shows three sample questions; tapping one asks it.
   - The message box grows to five lines. Its ↑ button becomes ■ Stop while an answer streams, and a stopped answer keeps its text.
@@ -182,4 +182,5 @@ To check a change in the running app, follow the `run-app` skill in `.claude/ski
 - **Release builds fail.** They fail while bundling the JavaScript: rolldown reports "UMD and IIFE are not supported for code-splitting builds". This only happens with `app/_layout.tsx` included, and the cause isn't found yet. Debug builds work.
 - **Android hasn't run on a device.** The Compose views have only been typechecked.
 - **Android and web keep the light colors** in dark mode.
+- **Android can't add a Google Doc,** because it has no text prompt to paste the link into.
 - **Sources don't open their page yet.**
