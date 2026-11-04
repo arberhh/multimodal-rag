@@ -3,7 +3,7 @@ import type { ServerStatus } from "~/features/server/useServerStatus";
 // the words on the home screen, shared by its iOS, Android and web views
 
 export const intro = {
-  title: "Chat with your PDFs",
+  title: "Chat with your documents",
   detail: "Ask questions about your documents and get answers that name the pages they came from.",
 };
 
@@ -25,7 +25,7 @@ export const destinations = [
   {
     href: "/documents",
     title: "My Documents",
-    detail: "Add and remove PDFs",
+    detail: "Add and remove documents",
     systemImage: "doc.on.doc",
     icon: "description",
   },
@@ -33,8 +33,9 @@ export const destinations = [
 
 export const steps = [
   {
-    title: "Add your PDFs",
-    detail: "Every page is read, with its tables, charts and pictures.",
+    title: "Add your documents",
+    detail:
+      "PDFs, Word files or Google Docs. Every page is read, with its tables, charts and pictures.",
     systemImage: "doc.badge.plus",
     icon: "upload_file",
   },

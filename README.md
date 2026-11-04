@@ -1,4 +1,4 @@
-# Multimodal RAG — Chat with PDFs
+# Multimodal RAG — Chat with your documents
 
 Add your PDFs, Word files or Google Docs, ask questions in your own words, and get answers that name the pages they came from.
 

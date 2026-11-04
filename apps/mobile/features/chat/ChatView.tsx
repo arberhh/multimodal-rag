@@ -62,7 +62,7 @@ function EmptyState({ onPick }: { onPick: (question: string) => void }) {
       <SystemIcon name="text.bubble" fallback="?" size={40} color={colors.accent} />
       <Text style={styles.emptyTitle}>Ask about your documents</Text>
       <Text style={styles.emptyDetail}>
-        Answers come from your PDFs and name the pages they used.
+        Answers come from your documents and name the pages they used.
       </Text>
       <View style={styles.suggestions}>
         {suggestions.map((question) => (

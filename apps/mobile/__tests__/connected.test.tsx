@@ -120,7 +120,7 @@ describe("home screen", () => {
     mockFetch.mockReturnValue(new Promise(() => {}));
     await renderHome();
 
-    expect(screen.getByText("Chat with your PDFs")).toBeOnTheScreen();
+    expect(screen.getByText("Chat with your documents")).toBeOnTheScreen();
     expect(screen.getByText("How it works")).toBeOnTheScreen();
   });
 
