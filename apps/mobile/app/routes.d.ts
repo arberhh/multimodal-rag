@@ -10,6 +10,7 @@ declare module 'one' {
         | `/`
         | `/_sitemap`
         | `/chat`
+        | `/conversations`
         | `/documents`
       DynamicRoutes: never
       DynamicRouteTemplate: never

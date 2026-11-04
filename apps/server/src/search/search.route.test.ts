@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import Fastify from "fastify";
 import { type Embed } from "./embed.js";
 import { search } from "./index.js";
+import { asTestUser, testUser } from "../users/testing.js";
 
 const docId = "2261f126-0a2e-4adc-a34a-0cfdc572a719";
 
@@ -20,6 +21,7 @@ async function setup(rows: unknown[] = []) {
       return { rows };
     },
   } as never);
+  asTestUser(app);
   await app.register(search, { embed });
   return { app, queries, embedded };
 }
@@ -54,8 +56,8 @@ describe("GET /search", () => {
         },
       ],
     });
-    // vector, limit (5 by default), and no document filter
-    assert.deepEqual(queries[0].values, ["[0.5,0.25]", 5, null]);
+    // vector, limit (5 by default), no document filter, and only the user's documents
+    assert.deepEqual(queries[0].values, ["[0.5,0.25]", 5, null, testUser.id]);
   });
 
   it("passes the limit and the document filter to the search", async () => {
@@ -63,7 +65,7 @@ describe("GET /search", () => {
 
     await app.inject({ url: `/search?q=revenue&limit=3&document=${docId}` });
 
-    assert.deepEqual(queries[0].values, ["[0.5,0.25]", 3, docId]);
+    assert.deepEqual(queries[0].values, ["[0.5,0.25]", 3, docId, testUser.id]);
   });
 
   it("returns an empty list when nothing is stored yet", async () => {

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import Fastify from "fastify";
 import { uploads } from "./index.js";
+import { asTestUser, testUser } from "../users/testing.js";
 
 type Call = { sql: string; values: unknown[] };
 
@@ -18,6 +19,7 @@ function setup(query: (call: Call) => unknown) {
       return query({ sql, values });
     },
   } as never);
+  asTestUser(app);
   return { app, calls };
 }
 
@@ -64,7 +66,7 @@ describe("uploads", () => {
       assert.deepEqual(await readdir(join(dir, "uploads")), [`${id}.pdf`]);
       assert.equal(calls.length, 1);
       assert.match(calls[0].sql, /INSERT INTO documents/);
-      assert.deepEqual(calls[0].values, [id, "report.pdf", "%PDF-1.4 test".length]);
+      assert.deepEqual(calls[0].values, [id, "report.pdf", "%PDF-1.4 test".length, testUser.id]);
       await app.close();
     });
 
@@ -143,7 +145,9 @@ describe("uploads", () => {
 
       assert.equal(res.statusCode, 200);
       assert.deepEqual(res.json(), { docs: rows });
-      assert.match(calls[0].sql, /FROM documents ORDER BY created_at DESC/);
+      // only the user's documents
+      assert.match(calls[0].sql, /WHERE user_id = \$1 ORDER BY created_at DESC/);
+      assert.deepEqual(calls[0].values, [testUser.id]);
       await app.close();
     });
   });
@@ -160,7 +164,7 @@ describe("uploads", () => {
 
       assert.equal(res.statusCode, 204);
       assert.match(calls[0].sql, /DELETE FROM documents/);
-      assert.deepEqual(calls[0].values, [id]);
+      assert.deepEqual(calls[0].values, [id, testUser.id]);
       assert.deepEqual(await readdir(join(dir, "uploads")), []);
       await app.close();
     });

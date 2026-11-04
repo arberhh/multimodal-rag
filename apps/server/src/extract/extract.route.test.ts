@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Fastify from "fastify";
 import { extract } from "./index.js";
+import { asTestUser, testUser } from "../users/testing.js";
 
 const id = "2261f126-0a2e-4adc-a34a-0cfdc572a719";
 
@@ -14,6 +15,7 @@ async function setup(rows: unknown[]) {
       return { rows };
     },
   } as never);
+  asTestUser(app);
   await app.register(extract);
   return { app, calls };
 }
@@ -30,7 +32,8 @@ describe("GET /extract/:id", () => {
 
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.json(), { id, pages: rows });
-    assert.deepEqual(calls, [[id]]);
+    // only the user's own document
+    assert.deepEqual(calls, [[id, testUser.id]]);
   });
 
   it("returns 404 when no pages are stored", async () => {

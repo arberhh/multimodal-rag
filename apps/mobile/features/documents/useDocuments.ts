@@ -1,21 +1,9 @@
 import { One } from "one";
 import { useEffect, useState } from "react";
-import { Alert, Platform } from "react-native";
+import { confirmRemove } from "~/features/confirmRemove";
 import { deleteDocument, type Document, listDocuments, uploadPdf } from "./api";
 
 const POLL_MS = 3000;
-
-// Alert does nothing on web, so the browser asks instead
-function confirmRemove(name: string, onConfirm: () => void) {
-  if (Platform.OS === "web") {
-    if (window.confirm(`Remove ${name}?`)) onConfirm();
-    return;
-  }
-  Alert.alert(`Remove ${name}?`, "This can't be undone.", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Remove", style: "destructive", onPress: onConfirm },
-  ]);
-}
 
 export function useDocuments() {
   const [docs, setDocs] = useState<Document[]>([]);

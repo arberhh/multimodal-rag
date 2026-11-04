@@ -7,12 +7,30 @@ jest.mock("~/features/server/config", () => ({ serverUrl: "http://test-server" }
 // one ships ESM that Jest can't load. SwiftUI and Compose views only render in native builds,
 // so these tests use the web view.
 const mockPush = jest.fn();
-jest.mock("one", () => ({ One: { platform: "web" }, useRouter: () => ({ push: mockPush }) }));
+jest.mock("one", () => ({
+  One: { platform: "web", Storage: { getItem: () => "test-device", setItem() {} } },
+  useRouter: () => ({ push: mockPush }),
+  // a test has one screen, always in view
+  useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
+}));
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 const respond = (body: unknown, ok = true) => ({ ok, json: async () => body });
+
+const recent = [
+  { id: "c1", title: "What was Q1 revenue?", updated_at: "2026-11-01T10:00:00Z" },
+  { id: "c2", title: "Who signed the contract?", updated_at: "2026-10-30T10:00:00Z" },
+];
+
+// a server that is up: each route answers with what it would
+const serverUp = (conversations = recent) =>
+  mockFetch.mockImplementation(async (url: string) => {
+    if (url.endsWith("/health")) return respond({ status: "ok" });
+    if (url.includes("/conversations")) return respond({ conversations });
+    return respond({ user: { id: "u1", name: "Ada" } });
+  });
 
 beforeEach(() => {
   mockFetch.mockReset();
@@ -37,7 +55,7 @@ describe("home screen", () => {
   });
 
   it("shows Connected when the server health check is ok", async () => {
-    mockFetch.mockResolvedValue(respond({ status: "ok" }));
+    serverUp();
 
     await renderHome();
 
@@ -65,8 +83,8 @@ describe("home screen", () => {
   });
 
   it("recovers to Connected when Retry is pressed after the server comes back", async () => {
+    serverUp();
     mockFetch.mockRejectedValueOnce(new Error("network"));
-    mockFetch.mockResolvedValue(respond({ status: "ok" }));
 
     await renderHome();
     await screen.findByText("Not connected");
@@ -77,7 +95,7 @@ describe("home screen", () => {
   });
 
   it("opens Chat and My Documents once connected", async () => {
-    mockFetch.mockResolvedValue(respond({ status: "ok" }));
+    serverUp();
     await renderHome();
     await screen.findByText("Connected");
 
@@ -104,5 +122,39 @@ describe("home screen", () => {
 
     expect(screen.getByText("Chat with your PDFs")).toBeOnTheScreen();
     expect(screen.getByText("How it works")).toBeOnTheScreen();
+  });
+
+  it("shows the latest chats once connected, and opens one", async () => {
+    serverUp();
+    await renderHome();
+
+    expect(await screen.findByText("What was Q1 revenue?")).toBeOnTheScreen();
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://test-server/conversations?limit=5",
+      expect.objectContaining({ headers: { "X-Device-Id": "test-device" } }),
+    );
+
+    await act(async () => fireEvent.press(screen.getByText("What was Q1 revenue?")));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: "/chat", params: { id: "c1" } });
+
+    await act(async () => fireEvent.press(screen.getByText("All chats")));
+    expect(mockPush).toHaveBeenCalledWith("/conversations");
+  });
+
+  it("shows no recent chats section before the first chat", async () => {
+    serverUp([]);
+    await renderHome();
+    await screen.findByText("Connected");
+
+    expect(screen.queryByText("Recent chats")).toBeNull();
+    // the full list is still one tap away
+    expect(screen.getByText("All chats")).toBeOnTheScreen();
+  });
+
+  it("shows the user's name", async () => {
+    serverUp();
+    await renderHome();
+
+    expect(await screen.findByText("Ada")).toBeOnTheScreen();
   });
 });

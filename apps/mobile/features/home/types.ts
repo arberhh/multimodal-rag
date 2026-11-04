@@ -1,8 +1,14 @@
+import type { Conversation } from "~/features/conversations/api";
 import type { ServerStatus } from "~/features/server/useServerStatus";
-import type { Destination } from "./content";
+
+type Screen = "/chat" | "/documents" | "/conversations";
 
 export type HomeViewProps = {
   status: ServerStatus;
   retry: () => void;
-  open: (destination: Destination) => void;
+  open: (screen: Screen) => void;
+  recent: Conversation[]; // the latest chats, at most RECENT_CHATS
+  openChat: (id: string) => void;
+  name: string | null;
+  rename?: () => void; // undefined where the platform can't ask for text (Android)
 };

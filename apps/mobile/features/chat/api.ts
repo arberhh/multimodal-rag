@@ -1,10 +1,12 @@
+import { apiFetch } from "~/features/server/apiFetch";
 import { serverUrl } from "~/features/server/config";
+import { deviceId } from "~/features/server/deviceId";
 import { parseEvents } from "./sse";
 
 export type Source = { documentId: string; fileName: string; page: number };
 
 export async function createConversation(): Promise<string> {
-  const res = await fetch(`${serverUrl}/conversations`, { method: "POST" });
+  const res = await apiFetch("/conversations", { method: "POST" });
   if (!res.ok) throw new Error(`Couldn't start the chat (${res.status})`);
   return (await res.json()).conversation.id;
 }
@@ -26,6 +28,7 @@ export function askQuestion(
     const request = new XMLHttpRequest();
     request.open("POST", `${serverUrl}/conversations/${conversationId}/messages`);
     request.setRequestHeader("Content-Type", "application/json");
+    request.setRequestHeader("X-Device-Id", deviceId());
 
     let sources: Source[] | undefined;
     let failure: string | undefined;

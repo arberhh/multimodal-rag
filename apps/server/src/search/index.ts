@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { pageContent } from "./content.js";
 import { type Embed, embedTexts } from "./embed.js";
+import { userOf } from "../users/index.js";
 
 // <=> is pgvector's cosine distance, so 1 - distance is the similarity (1 = same meaning)
 const SEARCH_SQL = `
@@ -8,15 +9,16 @@ const SEARCH_SQL = `
          1 - (p.embedding <=> $1::vector) AS score
   FROM document_pages p
   JOIN documents d ON d.id = p.document_id
-  WHERE p.embedding IS NOT NULL AND ($3::uuid IS NULL OR p.document_id = $3::uuid)
+  WHERE p.embedding IS NOT NULL AND d.user_id = $4
+    AND ($3::uuid IS NULL OR p.document_id = $3::uuid)
   ORDER BY p.embedding <=> $1::vector
   LIMIT $2`;
 
-// The pages closest in meaning to the question, best first.
+// The pages closest in meaning to the question, best first, from the user's own documents.
 export async function findPages(
   app: FastifyInstance,
   question: string,
-  { limit = 5, document }: { limit?: number; document?: string },
+  { user, limit = 5, document }: { user: string; limit?: number; document?: string },
   embed: Embed = embedTexts,
 ) {
   const { vectors } = await embed([question], "query");
@@ -24,6 +26,7 @@ export async function findPages(
     JSON.stringify(vectors[0]),
     limit,
     document ?? null,
+    user,
   ]);
 
   return rows.map((r) => ({
@@ -56,7 +59,8 @@ export const search: FastifyPluginAsync<{ embed?: Embed }> = async (
     },
     async (req) => {
       const { q, limit, document } = req.query;
-      return { results: await findPages(app, q, { limit, document }, embed) };
+      const user = userOf(req).id;
+      return { results: await findPages(app, q, { user, limit, document }, embed) };
     },
   );
 };

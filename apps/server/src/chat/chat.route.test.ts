@@ -4,6 +4,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import Fastify from "fastify";
 import { type Embed } from "../search/embed.js";
 import { chat } from "./index.js";
+import { asTestUser, testUser } from "../users/testing.js";
 
 const convId = "7b0f1c9e-4c1a-4f0e-9a51-2f6d8c3b1a10";
 const docId = "2261f126-0a2e-4adc-a34a-0cfdc572a719";
@@ -62,12 +63,15 @@ async function setup({
     query: async (sql: string, values: unknown[] = []) => {
       queries.push({ sql, values });
       if (sql.includes("INSERT INTO conversations")) return { rows: [{ id: convId }] };
+      if (sql.includes("DELETE FROM conversations")) return { rows: [], rowCount: exists ? 1 : 0 };
+      if (sql.includes("SELECT id, title")) return { rows: [{ id: convId, title: "Q2?" }] };
       if (sql.includes("FROM conversations")) return { rows: [], rowCount: exists ? 1 : 0 };
       if (sql.includes("SELECT role, content FROM messages")) return { rows: history };
       if (sql.includes("FROM document_pages")) return { rows: [pageRow] };
       return { rows: [] };
     },
   } as never);
+  asTestUser(app);
   await app.register(chat, { embed, client });
   return { app, queries, embedded };
 }
@@ -167,6 +171,69 @@ describe("chat routes", () => {
     const res = await app.inject({ url: `/conversations/${convId}/messages` });
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.json(), { messages: [] });
-    assert.deepEqual(queries[0].values, [convId]);
+    // checks the conversation is the user's, then reads it
+    assert.deepEqual(queries[0].values, [convId, testUser.id]);
+    assert.deepEqual(queries[1].values, [convId]);
+  });
+
+  it("POST /conversations gives the conversation to the user", async () => {
+    const { app, queries } = await setup();
+    await app.inject({ method: "POST", url: "/conversations" });
+    assert.deepEqual(queries[0].values, [testUser.id]);
+  });
+
+  it("names the conversation after its first question and moves it to the top", async () => {
+    const { app, queries } = await setup();
+
+    await ask(app, { question: "How much did Europe make in Q2?" });
+
+    const update = queries.find((q) => q.sql.includes("UPDATE conversations"));
+    assert.match(
+      update?.sql ?? "",
+      /title = COALESCE\(title, left\(\$2, 80\)\), updated_at = now\(\)/,
+    );
+    assert.deepEqual(update?.values, [convId, "How much did Europe make in Q2?"]);
+  });
+
+  it("only answers in the user's own conversations", async () => {
+    const { app, queries } = await setup();
+    await ask(app, { question: "Anything?" });
+    assert.deepEqual(queries[0].values, [convId, testUser.id]);
+  });
+
+  it("GET /conversations lists the user's named conversations, latest first", async () => {
+    const { app, queries } = await setup();
+
+    const res = await app.inject({ url: "/conversations?limit=5" });
+
+    assert.deepEqual(res.json(), { conversations: [{ id: convId, title: "Q2?" }] });
+    assert.match(
+      queries[0].sql,
+      /WHERE user_id = \$1 AND title IS NOT NULL\s+ORDER BY updated_at DESC/,
+    );
+    assert.deepEqual(queries[0].values, [testUser.id, 5]);
+  });
+
+  it("GET /conversations lists 50 by default", async () => {
+    const { app, queries } = await setup();
+    await app.inject({ url: "/conversations" });
+    assert.deepEqual(queries[0].values, [testUser.id, 50]);
+  });
+
+  it("DELETE /conversations/:id removes the user's conversation, or answers 404", async () => {
+    const own = await setup();
+    const res = await own.app.inject({ method: "DELETE", url: `/conversations/${convId}` });
+    assert.equal(res.statusCode, 204);
+    assert.deepEqual(own.queries[0].values, [convId, testUser.id]);
+
+    const other = await setup({ exists: false });
+    const missing = await other.app.inject({ method: "DELETE", url: `/conversations/${convId}` });
+    assert.equal(missing.statusCode, 404);
+  });
+
+  it("GET /conversations/:id/messages answers 404 for someone else's conversation", async () => {
+    const { app } = await setup({ exists: false });
+    const res = await app.inject({ url: `/conversations/${convId}/messages` });
+    assert.equal(res.statusCode, 404);
   });
 });

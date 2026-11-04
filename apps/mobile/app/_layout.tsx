@@ -62,6 +62,7 @@ function AppStack() {
       <Stack.Screen name="index" options={{ title: "RAG Chat" }} />
       <Stack.Screen name="documents" options={{ title: "My Documents" }} />
       <Stack.Screen name="chat" options={{ title: "Chat" }} />
+      <Stack.Screen name="conversations" options={{ title: "Chats" }} />
     </Stack>
   );
 }

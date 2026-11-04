@@ -6,6 +6,7 @@ import { extract } from "./extract/index.js";
 import { processDocument } from "./extract/process.js";
 import { search } from "./search/index.js";
 import { uploads } from "./uploads/index.js";
+import { users } from "./users/index.js";
 
 export async function buildApp(
   options: { logger: FastifyServerOptions["logger"]; databaseUrl?: string } = { logger: true },
@@ -13,8 +14,12 @@ export async function buildApp(
   const app = Fastify({ logger: options.logger });
   await app.register(cors, { origin: true });
 
-  // shared plugins first, so the features below can use them
-  if (options.databaseUrl) await app.register(db, { connectionString: options.databaseUrl });
+  // shared plugins first, so the features below can use them. users needs the database, and
+  // tells every route below who is asking
+  if (options.databaseUrl) {
+    await app.register(db, { connectionString: options.databaseUrl });
+    await app.register(users);
+  }
 
   // healthy only if the database answers too: without it every other route fails
   app.get("/health", async (req, reply) => {

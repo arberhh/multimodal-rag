@@ -13,7 +13,6 @@ export function useServerStatus() {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    let current = true;
     const check = async () => {
       let next: ServerStatus = "unreachable";
       try {
@@ -24,7 +23,7 @@ export function useServerStatus() {
       } catch {
         // no answer, or not JSON: it stays unreachable
       }
-      if (current) setStatus(next);
+      setStatus(next);
     };
     check();
 
@@ -34,7 +33,6 @@ export function useServerStatus() {
       if (state === "active") check();
     });
     return () => {
-      current = false;
       clearInterval(timer);
       foreground.remove();
     };

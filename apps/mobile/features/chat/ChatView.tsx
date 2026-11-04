@@ -175,7 +175,17 @@ const TurnRow = memo(function TurnRow({ turn, thinking }: { turn: Turn; thinking
 });
 
 // one view for every platform: unlike the documents list, a chat has nothing native to gain
-export function ChatView({ turns, loading, error, send, stop, retry, startOver }: ChatViewProps) {
+export function ChatView({
+  turns,
+  loading,
+  opening,
+  error,
+  canRetry,
+  send,
+  stop,
+  retry,
+  startOver,
+}: ChatViewProps) {
   const [draft, setDraft] = useState("");
   // how far down the window this screen starts (the header), which the keyboard must be offset by
   const [top, setTop] = useState(0);
@@ -186,7 +196,7 @@ export function ChatView({ turns, loading, error, send, stop, retry, startOver }
   const atEnd = useRef(true);
   const keyboardOpen = useKeyboardOpen();
   const { bottom } = useSafeAreaInsets();
-  const canSend = draft.trim() !== "" && !loading;
+  const canSend = draft.trim() !== "" && !loading && !opening;
 
   const ask = (question: string) => {
     atEnd.current = true;
@@ -246,7 +256,16 @@ export function ChatView({ turns, loading, error, send, stop, retry, startOver }
             keyExtractor={keyExtractor}
             style={styles.turns}
             contentContainerStyle={turns.length ? styles.turnsContent : styles.turnsEmpty}
-            ListEmptyComponent={<EmptyState onPick={ask} />}
+            ListEmptyComponent={
+              // a saved chat that failed to load shows only its error, below
+              opening ? (
+                error ? undefined : (
+                  <ActivityIndicator color={colors.muted} />
+                )
+              ) : (
+                <EmptyState onPick={ask} />
+              )
+            }
             renderItem={renderTurn}
             onScroll={onScroll}
             scrollEventThrottle={100}
@@ -269,9 +288,11 @@ export function ChatView({ turns, loading, error, send, stop, retry, startOver }
               >
                 {error}
               </Text>
-              <Pressable onPress={retry} accessibilityRole="button" hitSlop={8}>
-                <Text style={styles.link}>Try again</Text>
-              </Pressable>
+              {canRetry && (
+                <Pressable onPress={retry} accessibilityRole="button" hitSlop={8}>
+                  <Text style={styles.link}>Try again</Text>
+                </Pressable>
+              )}
             </View>
           )}
 
