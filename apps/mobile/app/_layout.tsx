@@ -23,8 +23,9 @@ export default function Layout() {
           <title>RAG Chat</title>
           <meta name="description" content="Chat with your documents." />
           <link rel="icon" href="/favicon.svg" />
-          {/* screens use minHeight: "100%", which needs a parent with a height */}
-          <style>{"html, body { height: 100%; }"}</style>
+          {/* screens use minHeight: "100%", which needs a parent with a height. A textarea, the
+              chat's message box, grows with its text as it does on a phone */}
+          <style>{"html, body { height: 100%; } textarea { field-sizing: content; }"}</style>
         </head>
 
         <ServerStatusProvider>

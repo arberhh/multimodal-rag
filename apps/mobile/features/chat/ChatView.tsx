@@ -255,6 +255,8 @@ export function ChatView({
             extraData={loading}
             keyExtractor={keyExtractor}
             style={styles.turns}
+            // a phone's chat shows no scroll bar; a browser keeps its own, to drag
+            showsVerticalScrollIndicator={One.platform === "web"}
             contentContainerStyle={turns.length ? styles.turnsContent : styles.turnsEmpty}
             ListEmptyComponent={
               // a saved chat that failed to load shows only its error, below
@@ -311,8 +313,10 @@ export function ChatView({
                 placeholder="Ask about your documents"
                 placeholderTextColor={colors.muted}
                 accessibilityLabel="Question"
-                style={styles.input}
+                style={One.platform === "web" ? styles.inputWeb : styles.input}
                 multiline
+                // a browser's textarea starts two lines tall; the page's CSS grows it from one
+                rows={One.platform === "web" ? 1 : undefined}
                 // the keyboard's return key sends; a new line isn't needed in a question
                 submitBehavior="submit"
                 onSubmitEditing={submit}
@@ -361,6 +365,15 @@ const sendButton = {
   justifyContent: "center",
   width: SEND_SIZE,
 } as const;
+const input = {
+  color: colors.text,
+  flex: 1,
+  fontSize: 16,
+  // about five lines, then it scrolls
+  maxHeight: 120,
+  paddingBottom: 7,
+  paddingTop: 7,
+};
 const suggestion = {
   backgroundColor: colors.fill,
   borderRadius: 18,
@@ -392,15 +405,10 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.text, fontSize: 22, fontWeight: "700", marginTop: 6 },
   error: { color: colors.unreachable, flex: 1 },
   errorRow: { alignItems: "center", flexDirection: "row", gap: 12, paddingVertical: 8 },
-  input: {
-    color: colors.text,
-    flex: 1,
-    fontSize: 16,
-    // about five lines, then it scrolls
-    maxHeight: 120,
-    paddingBottom: 7,
-    paddingTop: 7,
-  },
+  input,
+  // the composer's border already shows where to type, so the browser's focus box isn't needed.
+  // "solid", because Chrome draws its "auto" outline whatever the width
+  inputWeb: { ...input, outlineStyle: "solid", outlineWidth: 0 },
   link: { color: colors.accent, fontSize: 15, fontWeight: "600" },
   muted: { color: colors.muted, fontSize: 13 },
   page: {
