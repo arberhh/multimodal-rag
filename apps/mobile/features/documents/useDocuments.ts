@@ -1,8 +1,10 @@
 import { One } from "one";
 import { useEffect, useState } from "react";
+import { Alert } from "react-native";
 import { confirmRemove } from "~/features/confirmRemove";
 import type { Document } from "@multimodal-rag/shared";
-import { deleteDocument, listDocuments, uploadPdf } from "./api";
+import { addGoogleDoc, DOCUMENT_TYPES, deleteDocument, listDocuments, uploadFile } from "./api";
+import { googleDocMessage, googleDocTitle } from "./labels";
 
 const POLL_MS = 3000;
 
@@ -44,15 +46,13 @@ export function useDocuments() {
     return () => clearInterval(timer);
   }, [preparing]);
 
-  const addPdf = async () => {
-    const picked = await One.DocumentPicker.getDocument({ type: "application/pdf" });
-    if (picked.canceled) return;
-
+  // adds the document the server makes, newest first like the server's list
+  const add = async (upload: () => Promise<Document>) => {
     setError(null);
     setUploading(true);
     try {
-      const doc = await uploadPdf(picked.assets[0]);
-      setDocs((current) => [doc, ...current]); // newest first, like the server's list
+      const doc = await upload();
+      setDocs((current) => [doc, ...current]);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -60,7 +60,28 @@ export function useDocuments() {
     }
   };
 
-  const removePdf = (doc: Document) => {
+  const addFile = async () => {
+    const picked = await One.DocumentPicker.getDocument({ type: DOCUMENT_TYPES });
+    if (picked.canceled) return;
+    await add(() => uploadFile(picked.assets[0]));
+  };
+
+  // asks for a share link: a native prompt on iOS and the browser's on web. Android has no text
+  // prompt, so there it's undefined
+  const askForGoogleDoc = () => {
+    const addLink = (url: string | null | undefined) => {
+      const link = url?.trim();
+      if (link) add(() => addGoogleDoc(link));
+    };
+    if (One.platform === "web")
+      return addLink(window.prompt(`${googleDocTitle}\n\n${googleDocMessage}`));
+    Alert.prompt(googleDocTitle, googleDocMessage, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Add", onPress: (value?: string) => addLink(value) },
+    ]);
+  };
+
+  const removeDocument = (doc: Document) => {
     confirmRemove(doc.file_name, async () => {
       setError(null);
       try {
@@ -72,7 +93,14 @@ export function useDocuments() {
     });
   };
 
-  return { docs, uploading, error, addPdf, removePdf };
+  return {
+    docs,
+    uploading,
+    error,
+    addFile,
+    addGoogleDoc: One.platform === "android" ? undefined : askForGoogleDoc,
+    removeDocument,
+  };
 }
 
 export type DocumentsViewProps = ReturnType<typeof useDocuments>;

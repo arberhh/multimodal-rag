@@ -38,7 +38,8 @@ const pickPdf = (name: string) =>
     assets: [{ uri: `file:///${name}`, name }],
   });
 
-const pressAddPdf = () => act(async () => fireEvent.press(screen.getByText("Add PDF")));
+const pressAddPdf = () =>
+  act(async () => fireEvent.press(screen.getByText("Add PDF or Word file")));
 
 beforeEach(() => {
   mockFetch.mockReset();
@@ -78,7 +79,14 @@ describe("documents screen", () => {
     expect(screen.getByText("Preparing…")).toBeOnTheScreen();
     // the list isn't fetched again: one load on open, one upload
     expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockGetDocument).toHaveBeenCalledWith({ type: "application/pdf" });
+    // Word files too: the server turns them into PDFs
+    expect(mockGetDocument).toHaveBeenCalledWith({
+      type: [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ],
+    });
     expect(mockFetch).toHaveBeenCalledWith(
       "http://test-server/uploads",
       expect.objectContaining({ method: "POST" }),
@@ -105,7 +113,21 @@ describe("documents screen", () => {
     await screen.findByText("No documents yet.");
     await pressAddPdf();
 
-    expect(await screen.findByText("That PDF is too big")).toBeOnTheScreen();
+    expect(await screen.findByText("That file is too big")).toBeOnTheScreen();
+  });
+
+  it("shows the server's reason when it refuses a file", async () => {
+    mockFetch.mockResolvedValueOnce(respond({ docs: [] }));
+    pickPdf("notes.txt");
+    mockFetch.mockResolvedValueOnce(
+      respond({ error: "Only PDF and Word files can be added" }, false, 415),
+    );
+
+    await render(<Documents />);
+    await screen.findByText("No documents yet.");
+    await pressAddPdf();
+
+    expect(await screen.findByText("Only PDF and Word files can be added")).toBeOnTheScreen();
   });
 
   it("shows when a document couldn't be read", async () => {
@@ -171,6 +193,56 @@ describe("while a document is being prepared", () => {
 
     expect(screen.getByText("new.pdf")).toBeOnTheScreen();
     expect(screen.getByText("Ready")).toBeOnTheScreen();
+  });
+});
+
+describe("adding a Google Doc", () => {
+  const link = "https://docs.google.com/document/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edit";
+  const pressAddGoogleDoc = () =>
+    act(async () => fireEvent.press(screen.getByText("Add Google Doc")));
+
+  beforeEach(() => {
+    mockFetch.mockResolvedValueOnce(respond({ docs: [] }));
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it("sends the pasted link and shows the doc in the list", async () => {
+    window.prompt = jest.fn(() => ` ${link} `);
+    mockFetch.mockResolvedValueOnce(
+      respond({ doc: { ...doc("processing"), file_name: "Q3 plan.pdf" } }),
+    );
+
+    await render(<Documents />);
+    await screen.findByText("No documents yet.");
+    await pressAddGoogleDoc();
+
+    expect(await screen.findByText("Q3 plan.pdf")).toBeOnTheScreen();
+    expect(mockFetch).toHaveBeenLastCalledWith(
+      "http://test-server/uploads/google",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ url: link }) }),
+    );
+  });
+
+  it("does nothing when the prompt is canceled", async () => {
+    window.prompt = jest.fn(() => null);
+
+    await render(<Documents />);
+    await screen.findByText("No documents yet.");
+    await pressAddGoogleDoc();
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("says why when the doc isn't shared", async () => {
+    window.prompt = jest.fn(() => link);
+    const notShared = 'Couldn\'t open that doc. Share it as "Anyone with the link" and try again';
+    mockFetch.mockResolvedValueOnce(respond({ error: notShared }, false, 422));
+
+    await render(<Documents />);
+    await screen.findByText("No documents yet.");
+    await pressAddGoogleDoc();
+
+    expect(await screen.findByText(notShared)).toBeOnTheScreen();
   });
 });
 

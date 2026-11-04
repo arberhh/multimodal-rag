@@ -1,6 +1,6 @@
 # Multimodal RAG — Chat with PDFs
 
-Add your PDFs, ask questions in your own words, and get answers that name the pages they came from.
+Add your PDFs, Word files or Google Docs, ask questions in your own words, and get answers that name the pages they came from.
 
 The app reads every page, including tables, charts and pictures, so it can answer questions about a chart as well as about the text. Each answer lists the pages it used, so you can check it.
 
@@ -16,7 +16,7 @@ It's a pnpm monorepo:
 
 Two flows do all the work:
 
-1. **Adding a PDF.** The server saves the file and returns at once. In the background, Claude Haiku reads the whole PDF and writes out each page: its text, its tables, and its charts and pictures, with the values a chart plots. Voyage turns each page into a vector (a list of numbers that captures its meaning), and the pages are stored in Postgres.
+1. **Adding a document.** The server saves the file and returns at once. Word files (`.doc`, `.docx`) are turned into a PDF first, with LibreOffice, and a Google Doc is fetched from Google as a PDF, so from here on every document is a PDF. In the background, Claude Haiku reads the whole PDF and writes out each page: its text, its tables, and its charts and pictures, with the values a chart plots. Voyage turns each page into a vector (a list of numbers that captures its meaning), and the pages are stored in Postgres.
 2. **Asking a question.** Voyage turns the question into a vector as well. Postgres finds the 5 pages closest in meaning, and Claude Sonnet answers using only those pages and cites the ones it used. The answer streams to the app as it's written.
 
 ## System design
@@ -35,7 +35,7 @@ flowchart LR
   subgraph Requests["Requests"]
     direction TB
     R1["GET /health<br/>every 30 s"]
-    R2["POST /uploads<br/>GET /uploads<br/>DELETE /uploads/:id"]
+    R2["POST /uploads<br/>POST /uploads/google<br/>GET /uploads<br/>DELETE /uploads/:id"]
     R3["POST /conversations"]
     R4["POST /conversations/:id/messages<br/>streams text, then done"]
   end
@@ -76,7 +76,7 @@ flowchart LR
 
 The header on every screen shows the server status from `GET /health`. That check also queries the database, so the app shows Not connected when either the server or the database is down.
 
-### Adding a PDF
+### Adding a document
 
 ```mermaid
 %%{init: {"sequence": {"mirrorActors": false}}}%%
@@ -89,7 +89,8 @@ sequenceDiagram
   participant Haiku as Claude Haiku
   participant Voyage
 
-  App->>API: POST /uploads (multipart, the PDF)
+  App->>API: POST /uploads (multipart: a PDF or Word file)
+  Note over API: a Word file goes through LibreOffice first.<br/>POST /uploads/google fetches Google's PDF instead
   API->>Disk: save as <random id>.pdf
   API->>DB: INSERT documents (status processing)
   API-->>App: { doc }

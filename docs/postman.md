@@ -14,6 +14,7 @@
 | ------- | ------------------------ | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | Server  | Health                   | `GET {{baseUrl}}/health`                                     | 200 `{ status: "ok" }`, or 503 while the database is down               |
 | Uploads | Upload PDF               | `POST {{baseUrl}}/uploads`                                   | Pick a file for the form field `file`. Saves the new id as `documentId` |
+| Uploads | Add Google Doc           | `POST {{baseUrl}}/uploads/google`                            | Put a shared doc's link in `url`. Saves the new id as `documentId`      |
 | Uploads | List documents           | `GET {{baseUrl}}/uploads`                                    | Call it again until the status changes from `processing` to `ready`     |
 | Uploads | Remove document          | `DELETE {{baseUrl}}/uploads/{{documentId}}`                  | 204                                                                     |
 | Chat    | Start conversation       | `POST {{baseUrl}}/conversations`                             | Saves the new id as `conversationId`                                    |

@@ -10,11 +10,18 @@ import {
 } from "react-native";
 import { colors, sharedStyles } from "~/features/theme";
 import type { Document, DocumentStatus } from "@multimodal-rag/shared";
-import { addPdfLabel, emptyLabel, formatSize, statusLabel } from "./labels";
+import { addFileLabel, addGoogleDocLabel, emptyLabel, formatSize, statusLabel } from "./labels";
 import type { DocumentsViewProps } from "./useDocuments";
 
 // web has no SwiftUI or Compose, so this one is plain React Native views
-export function DocumentsWeb({ docs, uploading, error, addPdf, removePdf }: DocumentsViewProps) {
+export function DocumentsWeb({
+  docs,
+  uploading,
+  error,
+  addFile,
+  addGoogleDoc,
+  removeDocument,
+}: DocumentsViewProps) {
   const renderDocument = ({ item }: ListRenderItemInfo<Document>) => (
     <View style={styles.row}>
       <View style={styles.rowText}>
@@ -27,7 +34,10 @@ export function DocumentsWeb({ docs, uploading, error, addPdf, removePdf }: Docu
         <View style={[sharedStyles.dot, { backgroundColor: dotColor[item.status] }]} />
         <Text>{statusLabel[item.status]}</Text>
       </View>
-      <Pressable onPress={() => removePdf(item)} accessibilityLabel={`Remove ${item.file_name}`}>
+      <Pressable
+        onPress={() => removeDocument(item)}
+        accessibilityLabel={`Remove ${item.file_name}`}
+      >
         <Text style={styles.remove}>Remove</Text>
       </Pressable>
     </View>
@@ -45,13 +55,18 @@ export function DocumentsWeb({ docs, uploading, error, addPdf, removePdf }: Docu
         <View style={styles.header}>
           <Text style={sharedStyles.title}>My Documents</Text>
           <Pressable
-            onPress={addPdf}
+            onPress={addFile}
             disabled={uploading}
             style={[sharedStyles.button, uploading && styles.buttonDisabled]}
           >
-            <Text style={sharedStyles.buttonText}>{addPdfLabel(uploading)}</Text>
+            <Text style={sharedStyles.buttonText}>{addFileLabel(uploading)}</Text>
           </Pressable>
         </View>
+        {addGoogleDoc && (
+          <Pressable onPress={addGoogleDoc} disabled={uploading} accessibilityRole="button">
+            <Text style={styles.link}>{addGoogleDocLabel}</Text>
+          </Pressable>
+        )}
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -83,6 +98,7 @@ const styles = StyleSheet.create({
   content: { gap: 16, maxWidth: 640, width: "100%" },
   error: { color: colors.unreachable },
   header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  link: { color: colors.accent, fontSize: 14 },
   muted: { color: colors.muted, fontSize: 13 },
   name: { fontSize: 16, fontWeight: "500" },
   page: {
