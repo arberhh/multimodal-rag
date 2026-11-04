@@ -19,7 +19,7 @@ It listens on `0.0.0.0`, so a phone on the same network can reach it. The port i
 | `POST`   | `/uploads`                    | My Documents  | Saves a PDF or Word file (multipart field `file`, up to 100 MB) and starts reading it       |
 | `POST`   | `/uploads/google`             | My Documents  | Fetches a shared Google Doc as a PDF, from `{ url }`, its share link, and starts reading it |
 | `GET`    | `/uploads`                    | My Documents  | Every document, newest first, with its status                                               |
-| `DELETE` | `/uploads/:id`                | My Documents  | Removes the document, its pages and its file. 204, or 404 if it doesn't exist               |
+| `DELETE` | `/uploads/:id`                | My Documents  | Removes the document, its pages and its file. 204, or 404 if it isn't the user's            |
 | `POST`   | `/conversations`              | Chat          | Starts a conversation. 201 `{ conversation }`                                               |
 | `POST`   | `/conversations/:id/messages` | Chat          | Answers `{ question, document? }` as a stream of server-sent events                         |
 | `GET`    | `/conversations/:id/messages` | Chat          | The conversation's messages, in order, with the sources of each answer                      |

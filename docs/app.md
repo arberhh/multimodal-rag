@@ -33,7 +33,7 @@ flowchart LR
 - **My Documents** adds a PDF or Word file with the system file picker, or a Google Doc from its share link, and lists every document with its size and status. The link is asked for with a native prompt on iOS and the browser's on web. Android has no text prompt, so its screen has a field for the link, with Paste and Add Google Doc. When the server refuses a file, the screen shows its reason, such as a doc that isn't shared. While any document is still being read, it checks the list again every 3 seconds. A swipe (iOS) or the trash button (Android and web) removes a document after a confirm.
 - **Chat:**
   - With no messages, it shows three sample questions; tapping one asks it.
-  - The message box grows to five lines. Its ↑ button becomes ■ Stop while an answer streams, and a stopped answer keeps its text.
+  - The message box is focused when the chat opens, and stays above the keyboard. It grows to five lines. Its ↑ button becomes ■ Stop while an answer streams, and a stopped answer keeps its text.
   - Each answer shows its source pages as pills, with Copy and Share underneath. Tapping a pill opens a sheet with the part of that page the answer used, drawn like an answer, so its tables stay tables. On iOS it's SwiftUI's sheet at half height, which drags to full; on Android and web it's a React Native modal with Done.
   - A failed question gets **Try again**.
   - **New chat** in the header starts a new conversation.
@@ -141,6 +141,14 @@ pnpm --filter @multimodal-rag/mobile prebuild:native   # regenerate ios/ and and
 
 `pnpm run:*` refuses to start if something is already answering on port 8081, since it would open the wrong app.
 
+The Android debug build holds native code for four CPU types, which makes it 455 MB and can fill an emulator. An emulator on an Apple silicon Mac only needs `arm64-v8a`, which makes it 143 MB:
+
+```sh
+ORG_GRADLE_PROJECT_reactNativeArchitectures=arm64-v8a pnpm run:android
+```
+
+Gradle reads that variable over `android/gradle.properties`, which prebuild writes again anyway.
+
 ### Links
 
 The app registers the `ragchat` scheme, and the router matches its links like Expo Router does. `ragchat:///chat?id=<conversation id>` opens that chat, and `ragchat:///documents` and `ragchat:///conversations` open those screens. On the simulator:
@@ -176,7 +184,7 @@ Jest renders the web views, because SwiftUI and Compose only render in native bu
 
 A mock must behave like the One API it stands in for. One's `useFocusEffect(effect, deps)` takes its deps as the second argument, unlike React Navigation's, and a mock that re-ran on every new callback once hid a bug where the home screen never loaded its chats.
 
-To check a change in the running app, follow the `run-app` skill in `.claude/skills/run-app`: it starts everything, walks through the web app with Playwright and opens each screen on the iOS simulator by link.
+To check a change in the running app, follow the `run-app` skill in `.claude/skills/run-app`: it starts everything, walks through the web app with Playwright, opens each screen on the iOS simulator by link, and taps through the Android emulator with `adb`.
 
 ## Known gaps
 

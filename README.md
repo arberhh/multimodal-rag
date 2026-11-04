@@ -19,7 +19,7 @@ Two flows do all the work:
 1. **Adding a document.** The server saves the file and returns at once. Word files (`.doc`, `.docx`) are turned into a PDF first, with LibreOffice, and a Google Doc is fetched from Google as a PDF, so from here on every document is a PDF. In the background, Claude Haiku reads the whole PDF and writes out each page: its text, its tables, and its charts and pictures, with the values a chart plots. Voyage turns each page into a vector (a list of numbers that captures its meaning), and the pages are stored in Postgres.
 2. **Asking a question.** Voyage turns the question into a vector as well. Postgres finds the 5 pages closest in meaning, and Claude Sonnet answers using only those pages and cites the parts it used. The answer streams to the app as it's written, and tapping a source shows the part of the page it came from.
 
-Each install of the app is its own user. It makes a random id once, keeps it in the keychain (or localStorage on web), and sends it as `X-Device-Id` with every request. The server only ever shows a user their own documents and chats. This isn't sign-in: anyone with the id is that user.
+Each install of the app is its own user. It makes a random id once, keeps it in the iOS keychain or the Android keystore (localStorage on web), and sends it as `X-Device-Id` with every request. The server only ever shows a user their own documents and chats. This isn't sign-in: anyone with the id is that user.
 
 ## System design
 
@@ -40,7 +40,7 @@ flowchart LR
     R1["GET /health<br/>every 30 s"]
     R2["POST /uploads<br/>POST /uploads/google<br/>GET /uploads<br/>DELETE /uploads/:id"]
     R3["POST /conversations"]
-    R4["POST /conversations/:id/messages<br/>streams text, then done"]
+    R4["POST /conversations/:id/messages<br/>streams text, then done<br/>GET /conversations/:id/messages<br/>a saved chat"]
     R5["GET /conversations<br/>DELETE /conversations/:id"]
     R6["GET /me<br/>PUT /me"]
   end
@@ -143,8 +143,8 @@ sequenceDiagram
     Sonnet-->>API: a piece of text
     API-->>App: event text
   end
-  API->>DB: save the answer and its cited pages
-  API-->>App: event done { sources }
+  API->>DB: save the answer and its sources, each with the part of the page it used
+  API-->>App: event done { sources, each with its quote }
 ```
 
 If the app leaves or the user taps Stop, the connection closes. The server notices and aborts Claude's stream, so nobody pays for an answer no one will read.
@@ -166,7 +166,7 @@ pnpm run:web             # starts the app's dev server and opens http://localhos
 
 For iOS or Android, and for running on a phone, see [docs/app.md](docs/app.md).
 
-To check a change in the running app (the API with curl, web with Playwright, iOS on the simulator), follow the `run-app` skill in [.claude/skills/run-app](.claude/skills/run-app/SKILL.md).
+To check a change in the running app (the API with curl, web with Playwright, iOS on the simulator, Android on the emulator), follow the `run-app` skill in [.claude/skills/run-app](.claude/skills/run-app/SKILL.md).
 
 ## Checks
 

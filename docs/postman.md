@@ -11,16 +11,16 @@
 
 ## Requests
 
-| Folder  | Request                  | Route                                                        | Notes                                                                   |
-| ------- | ------------------------ | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| Server  | Health                   | `GET {{baseUrl}}/health`                                     | 200 `{ status: "ok" }`, or 503 while the database is down               |
-| Uploads | Upload PDF               | `POST {{baseUrl}}/uploads`                                   | Pick a file for the form field `file`. Saves the new id as `documentId` |
-| Uploads | Add Google Doc           | `POST {{baseUrl}}/uploads/google`                            | Put a shared doc's link in `url`. Saves the new id as `documentId`      |
-| Uploads | List documents           | `GET {{baseUrl}}/uploads`                                    | Call it again until the status changes from `processing` to `ready`     |
-| Uploads | Remove document          | `DELETE {{baseUrl}}/uploads/{{documentId}}`                  | 204                                                                     |
-| Chat    | Start conversation       | `POST {{baseUrl}}/conversations`                             | Saves the new id as `conversationId`                                    |
-| Chat    | Ask a question (streams) | `POST {{baseUrl}}/conversations/{{conversationId}}/messages` | Body `{ "question": "…" }`. The events arrive as the answer is written  |
-| Chat    | Conversation history     | `GET {{baseUrl}}/conversations/{{conversationId}}/messages`  | Every question and answer, with each answer's sources                   |
+| Folder  | Request                  | Route                                                        | Notes                                                                     |
+| ------- | ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Server  | Health                   | `GET {{baseUrl}}/health`                                     | 200 `{ status: "ok" }`, or 503 while the database is down                 |
+| Uploads | Upload PDF               | `POST {{baseUrl}}/uploads`                                   | A PDF or Word file in the form field `file`. Saves the id as `documentId` |
+| Uploads | Add Google Doc           | `POST {{baseUrl}}/uploads/google`                            | Put a shared doc's link in `url`. Saves the new id as `documentId`        |
+| Uploads | List documents           | `GET {{baseUrl}}/uploads`                                    | Call it again until the status changes from `processing` to `ready`       |
+| Uploads | Remove document          | `DELETE {{baseUrl}}/uploads/{{documentId}}`                  | 204                                                                       |
+| Chat    | Start conversation       | `POST {{baseUrl}}/conversations`                             | Saves the new id as `conversationId`                                      |
+| Chat    | Ask a question (streams) | `POST {{baseUrl}}/conversations/{{conversationId}}/messages` | Body `{ "question": "…" }`. The events arrive as the answer is written    |
+| Chat    | Conversation history     | `GET {{baseUrl}}/conversations/{{conversationId}}/messages`  | Every question and answer, with each answer's sources                     |
 
 Two of the requests save an id for the requests after them:
 

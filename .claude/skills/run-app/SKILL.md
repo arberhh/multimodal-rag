@@ -1,6 +1,6 @@
 ---
 name: run-app
-description: Launch and drive this app (the Postgres database, the Fastify server and the One app on web and iOS) for local development, and check a change works end to end. Use when asked to run, start, test or screenshot the app, or to confirm a change works in the real app and not just in tests.
+description: Launch and drive this app (the Postgres database, the Fastify server and the One app on web, iOS and Android) for local development, and check a change works end to end. Use when asked to run, start, test or screenshot the app, or to confirm a change works in the real app and not just in tests.
 ---
 
 # Running this app
@@ -14,6 +14,7 @@ Three parts, started in this order:
 ## Setup
 
 - **`.env` at the repo root** holds `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`, `ANTHROPIC_API_KEY` and `VOYAGE_API_KEY`. Never print the values. To check what is set, show only the names: `grep -oE "^[A-Z_]+" .env`.
+- **LibreOffice** turns Word files into PDFs (`brew install --cask libreoffice`). Without it, PDFs and Google Docs still work.
 - **`apps/mobile/.env`** has `VITE_SERVER_URL`, the Mac's LAN address, so a phone can reach the server. Without it the app uses `localhost:3000`, or `10.0.2.2:3000` on the Android emulator.
 
 ## Launch
@@ -110,10 +111,27 @@ xcrun simctl io booted screenshot <file>.png
   ```
 
 - **A change to the scheme or other native settings needs a new build.** Run `pnpm --filter @multimodal-rag/mobile prebuild:native`, then `npx one run:ios --udid <udid>` from `apps/mobile`. Changes to JavaScript only need the dev server.
-- There's still no tap tool, so typing and pressing buttons are only checked on web.
+- There's still no tap tool for the simulator, so on iOS typing and pressing buttons are only checked by hand. Android can be tapped (below).
 - **The phone:** `xcrun devicectl device process launch --device <udid> --terminate-existing dev.arberihh.ragchat`. Get the udid from `xcrun devicectl list devices`. There's no screenshot tool for it, so ask the user for one.
 
-### 4. Clean up
+### 4. Android, on the emulator
+
+Unlike the simulator, the emulator can be tapped and typed into, with `adb` (in `~/Library/Android/sdk/platform-tools`).
+
+```bash
+ORG_GRADLE_PROJECT_reactNativeArchitectures=arm64-v8a pnpm android   # builds and installs; the dev server must be running
+adb shell am start -a android.intent.action.VIEW -d "ragchat:///documents" dev.arberihh.ragchat
+adb exec-out screencap -p > <file>.png
+adb shell input tap <x> <y>          # in the screen's pixels: the screenshot's size, not its displayed size
+adb shell input text "Hello"
+```
+
+- **Build for `arm64-v8a` only.** The full debug APK is 455 MB, and the install fails with "not enough space" on a nearly full emulator.
+- **A 16 KB page-size dialog** shows on the first launch on a 16 KB emulator image and covers the app. Tap OK on it before checking the screen.
+- **After a JavaScript change**, restart the app (`adb shell am force-stop dev.arberihh.ragchat`, then start it again) if the screen didn't update.
+- `adb` can't set the emulator's clipboard, so Paste buttons can't be checked this way.
+
+### 5. Clean up
 
 Remove what the run made: delete the documents through the API first, which also removes their PDFs from `apps/server/uploads/`. Then delete the throwaway users (`DELETE FROM users WHERE device_id = '…'`), which takes their chats with them.
 
