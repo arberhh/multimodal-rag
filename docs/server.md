@@ -1,6 +1,6 @@
 # The server (`apps/server`)
 
-A Fastify API on Node 22, run with `tsx`. It keeps documents and conversations in Postgres, finds pages by meaning with pgvector, reads PDFs with Claude Haiku, makes vectors with Voyage, and writes answers with Claude Sonnet.
+A Fastify API on Node 22, run with `tsx`. It keeps documents and conversations in Postgres, finds pages by meaning with pgvector, turns Word files into PDFs with LibreOffice, reads PDFs with Claude Haiku, makes vectors with Voyage, and writes answers with Claude Sonnet.
 
 ```sh
 pnpm --filter @multimodal-rag/server dev       # watch mode, http://localhost:3000
@@ -16,7 +16,8 @@ It listens on `0.0.0.0`, so a phone on the same network can reach it. The port i
 | Method   | Route                         | Used by       | What it does                                                                                |
 | -------- | ----------------------------- | ------------- | ------------------------------------------------------------------------------------------- |
 | `GET`    | `/health`                     | header, Home  | `{ status: "ok" }` if the database answers, 503 `{ status: "database unreachable" }` if not |
-| `POST`   | `/uploads`                    | My Documents  | Saves a PDF (multipart field `file`, up to 100 MB) and starts reading it                    |
+| `POST`   | `/uploads`                    | My Documents  | Saves a PDF or Word file (multipart field `file`, up to 100 MB) and starts reading it       |
+| `POST`   | `/uploads/google`             | My Documents  | Fetches a shared Google Doc as a PDF, from `{ url }`, its share link, and starts reading it |
 | `GET`    | `/uploads`                    | My Documents  | Every document, newest first, with its status                                               |
 | `DELETE` | `/uploads/:id`                | My Documents  | Removes the document, its pages and its file. 204, or 404 if it doesn't exist               |
 | `POST`   | `/conversations`              | Chat          | Starts a conversation. 201 `{ conversation }`                                               |
@@ -44,9 +45,17 @@ data: {"sources":[{"documentId":"…","fileName":"quarterly-report.pdf","page":3
 
 If answering fails, the last event is `error` with `{ "error": "Could not answer the question" }` instead of `done`. If the client closes the connection before the end, the server aborts Claude's stream and saves only the question.
 
+## Word files and Google Docs
+
+Every document is stored as `uploads/<id>.pdf`, so reading, searching and removing work the same whatever was added. `src/uploads/convert.ts` does the turning:
+
+- **The type comes from the file's first bytes**, not from its name or the type the client sends: `%PDF-` is a PDF, a zip file is a `.docx`, and the old Office header is a `.doc`. Anything else gets a 415, "Only PDF and Word files can be added".
+- **Word files go through LibreOffice** (`soffice --headless --convert-to pdf`), each with its own LibreOffice profile, because two conversions on the same profile fail. A file LibreOffice can't convert gets a 422, and nothing is kept. The original Word file is removed once the PDF is written, and the document keeps the Word file's name.
+- **A Google Doc comes from its share link.** Only the doc id is taken from the link, so the server never fetches anything but `https://docs.google.com/document/d/<id>/export?format=pdf`. Google only exports a doc shared as "Anyone with the link". For any other doc it answers with its sign-in page, which the server spots, because it isn't a PDF, and turns into a 422 asking for the doc to be shared. The document is named after the doc's title, from Google's `Content-Disposition`.
+
 ## Reading a PDF
 
-`POST /uploads` returns as soon as the file and its row are saved. It then starts `processDocument` (`src/extract/process.ts`) without waiting for it:
+`POST /uploads` and `POST /uploads/google` return as soon as the PDF and its row are saved. It then starts `processDocument` (`src/extract/process.ts`) without waiting for it:
 
 1. **Read.** `extractPages` sends the whole PDF to **Claude Haiku** (`claude-haiku-5-5`) with a transcription prompt and a Zod output format. For each page it gets back:
    - the body text as markdown;
@@ -109,7 +118,7 @@ erDiagram
 ```
 
 - **Deletes cascade.** Deleting a document deletes its pages, and deleting a conversation deletes its messages.
-- **Files live on disk.** Each PDF is saved as `uploads/<id>.pdf`, named with a random id so the client's file name never decides where the server writes.
+- **Files live on disk.** Each document is saved as `uploads/<id>.pdf`, named with a random id so the client's file name never decides where the server writes. A Word file is only on disk while it's being turned into a PDF.
 - **Migrations** live in `migrations/` and are applied with Postgrator, which records them in the `migrations` table. Never edit a migration that has already been applied; add a new one.
 - **Browsing the tables:** `docker compose up -d` also starts a read-only [pgweb](http://localhost:8082).
 
@@ -122,14 +131,17 @@ erDiagram
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT` | The database. The server connects to `localhost:POSTGRES_PORT` |
 | `ANTHROPIC_API_KEY`                                                  | Reading PDFs and writing answers                               |
 | `VOYAGE_API_KEY`                                                     | Page and question vectors                                      |
+| `SOFFICE_PATH`                                                       | LibreOffice's `soffice`, when it isn't in the usual place      |
 | `PORT`                                                               | The server's port (default 3000)                               |
 | `NODE_ENV=production`                                                | JSON logs instead of the readable dev logs                     |
+
+**LibreOffice must be installed** wherever the server runs, for Word files: `brew install --cask libreoffice` on macOS, or the `libreoffice` package on Linux. The server looks for `soffice` inside the macOS app, or on the `PATH` elsewhere. Without it, PDFs and Google Docs still work, and Word files get the 422.
 
 ## Robustness
 
 - **The database goes away.** The pool listens for `error`, so a connection the database drops is logged instead of crashing the server. `/health` answers 503 until the database is back, and the pool reconnects on the next query.
 - **The app leaves mid-answer.** The server sees the connection close before the reply has ended, and aborts Claude's stream.
-- **A failed upload.** If saving the file or its row fails (the file is too big, or the database is down), the half-written file is removed.
+- **A failed upload.** If saving the file or its row fails (the file is too big, or the database is down), the half-written file is removed. So are a Word file that couldn't be turned into a PDF, and anything that isn't a PDF or a Word file.
 
 ## Tests
 
@@ -137,7 +149,7 @@ erDiagram
 pnpm --filter @multimodal-rag/server test
 ```
 
-Node's test runner with `tsx`. Claude and Voyage are replaced by fakes passed in as arguments: `answerQuestion` and `processDocument` take a `client`, and `findPages` takes an `embed`. So the tests don't use the network or cost anything.
+Node's test runner with `tsx`. Claude, Voyage, LibreOffice and Google are replaced by fakes passed in as arguments: `answerQuestion` and `processDocument` take a `client`, `findPages` takes an `embed`, and the uploads plugin takes `toPdf` and `fetchGoogle`. So the tests don't use the network or cost anything.
 
 ## Known gaps
 
