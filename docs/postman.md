@@ -21,6 +21,10 @@
 | Chat    | Start conversation       | `POST {{baseUrl}}/conversations`                             | Saves the new id as `conversationId`                                      |
 | Chat    | Ask a question (streams) | `POST {{baseUrl}}/conversations/{{conversationId}}/messages` | Body `{ "question": "…" }`. The events arrive as the answer is written    |
 | Chat    | Conversation history     | `GET {{baseUrl}}/conversations/{{conversationId}}/messages`  | Every question and answer, with each answer's sources                     |
+| Chat    | List chats               | `GET {{baseUrl}}/conversations?limit=50`                     | The user's chats that have a question, latest first                       |
+| Chat    | Remove conversation      | `DELETE {{baseUrl}}/conversations/{{conversationId}}`        | 204                                                                       |
+| User    | Me                       | `GET {{baseUrl}}/me`                                         | The user's id and name                                                    |
+| User    | Set name                 | `PUT {{baseUrl}}/me`                                         | Body `{ "name": "…" }`, 1 to 60 characters                                |
 
 Two of the requests save an id for the requests after them:
 
@@ -35,7 +39,8 @@ Two of the requests save an id for the requests after them:
 4. **Start conversation**.
 5. **Ask a question**. The sample asks "How much revenue did Europe make in Q2?". The response is a list of `text` events, then `done` with the pages it used.
 6. **Conversation history** shows the question and the answer with its `sources`.
-7. **Remove document** to clean up.
+7. **List chats** shows the chat, titled with its question.
+8. **Remove conversation** and **Remove document** to clean up.
 
 ## Not in the collection
 

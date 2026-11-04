@@ -125,6 +125,32 @@
             "method": "GET",
             "url": "{{baseUrl}}/conversations/{{conversationId}}/messages"
           }
+        },
+        {
+          "name": "List chats",
+          "request": { "method": "GET", "url": "{{baseUrl}}/conversations?limit=50" }
+        },
+        {
+          "name": "Remove conversation",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/conversations/{{conversationId}}" }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Me",
+          "request": { "method": "GET", "url": "{{baseUrl}}/me" }
+        },
+        {
+          "name": "Set name",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/me",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Arber\"\n}" }
+          }
         }
       ]
     }
