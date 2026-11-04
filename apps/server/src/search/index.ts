@@ -1,6 +1,6 @@
 import type { SearchResponse, SearchResult } from "@multimodal-rag/shared";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
-import { pageContent } from "./content.js";
+import { pageBlocks } from "./content.js";
 import { type Embed, embedTexts } from "./embed.js";
 import { userOf } from "../users/index.js";
 
@@ -15,13 +15,14 @@ const SEARCH_SQL = `
   ORDER BY p.embedding <=> $1::vector
   LIMIT $2`;
 
-// The pages closest in meaning to the question, best first, from the user's own documents.
+// The pages closest in meaning to the question, best first, from the user's own documents. Each
+// page comes in blocks, the parts Claude can cite one at a time.
 export async function findPages(
   app: FastifyInstance,
   question: string,
   { user, limit = 5, document }: { user: string; limit?: number; document?: string },
   embed: Embed = embedTexts,
-): Promise<SearchResult[]> {
+): Promise<(Omit<SearchResult, "content"> & { blocks: string[] })[]> {
   const { vectors } = await embed([question], "query");
   const { rows } = await app.pg.query(SEARCH_SQL, [
     JSON.stringify(vectors[0]),
@@ -35,7 +36,7 @@ export async function findPages(
     fileName: r.file_name as string,
     page: r.page as number,
     score: Number(r.score),
-    content: pageContent(r),
+    blocks: pageBlocks(r),
   }));
 }
 
@@ -61,7 +62,16 @@ export const search: FastifyPluginAsync<{ embed?: Embed }> = async (
     async (req) => {
       const { q, limit, document } = req.query;
       const user = userOf(req).id;
-      return { results: await findPages(app, q, { user, limit, document }, embed) };
+      const pages = await findPages(app, q, { user, limit, document }, embed);
+      return {
+        results: pages.map(({ documentId, fileName, page, score, blocks }) => ({
+          documentId,
+          fileName,
+          page,
+          score,
+          content: blocks.join("\n\n"),
+        })),
+      };
     },
   );
 };

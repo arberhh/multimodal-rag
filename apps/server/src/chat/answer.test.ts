@@ -4,8 +4,20 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { answerQuestion } from "./answer.js";
 
 const pages = [
-  { documentId: "doc-1", fileName: "report.pdf", page: 1, score: 0.5, content: "Revenue grew 23%" },
-  { documentId: "doc-1", fileName: "report.pdf", page: 2, score: 0.4, content: "| Europe | 0.9 |" },
+  {
+    documentId: "doc-1",
+    fileName: "report.pdf",
+    page: 1,
+    score: 0.5,
+    blocks: ["## Summary\n\nRevenue grew 23%", "Costs fell 4%", "| Q2 | Q3 |"],
+  },
+  {
+    documentId: "doc-1",
+    fileName: "report.pdf",
+    page: 2,
+    score: 0.4,
+    blocks: ["| Europe | 0.9 |"],
+  },
 ];
 
 // The model is faked, so these tests never call the API. It streams `pieces`, then returns `content`.
@@ -33,9 +45,12 @@ function fakeClient(pieces: string[], content: unknown[]) {
   return { client, requests, options };
 }
 
-const cite = (search_result_index: number) => ({
+// a citation of blocks start to end (not included) of a page
+const cite = (search_result_index: number, start = 0, end = start + 1) => ({
   type: "search_result_location",
   search_result_index,
+  start_block_index: start,
+  end_block_index: end,
 });
 
 describe("answerQuestion", () => {
@@ -62,7 +77,12 @@ describe("answerQuestion", () => {
     const [first, second, question] = messages[2].content;
     assert.equal(first.type, "search_result");
     assert.equal(first.title, "report.pdf, page 1");
-    assert.deepEqual(first.content, [{ type: "text", text: "Revenue grew 23%" }]);
+    // one block per paragraph, table or figure, so a citation names the part it used
+    assert.deepEqual(first.content, [
+      { type: "text", text: "## Summary\n\nRevenue grew 23%" },
+      { type: "text", text: "Costs fell 4%" },
+      { type: "text", text: "| Q2 | Q3 |" },
+    ]);
     assert.deepEqual(first.citations, { enabled: true });
     assert.equal(second.title, "report.pdf, page 2");
     assert.deepEqual(question, { type: "text", text: "And in Europe?" });
@@ -85,8 +105,34 @@ describe("answerQuestion", () => {
     assert.deepEqual(streamed, ["Europe made ", "$0.9 million", "."]);
     assert.equal(result.text, "Europe made $0.9 million.");
     assert.deepEqual(result.sources, [
-      { documentId: "doc-1", fileName: "report.pdf", page: 1 },
-      { documentId: "doc-1", fileName: "report.pdf", page: 2 },
+      {
+        documentId: "doc-1",
+        fileName: "report.pdf",
+        page: 1,
+        quote: "## Summary\n\nRevenue grew 23%",
+      },
+      { documentId: "doc-1", fileName: "report.pdf", page: 2, quote: "| Europe | 0.9 |" },
+    ]);
+  });
+
+  it("quotes only the cited blocks of a page, each once and in page order", async () => {
+    const { client } = fakeClient(
+      [],
+      [
+        { type: "text", text: "Tables first", citations: [cite(0, 2)] },
+        { type: "text", text: ", then the summary", citations: [cite(0, 0), cite(0, 2)] },
+      ],
+    );
+
+    const result = await answerQuestion("Q?", [], pages, () => {}, client);
+
+    assert.deepEqual(result.sources, [
+      {
+        documentId: "doc-1",
+        fileName: "report.pdf",
+        page: 1,
+        quote: "## Summary\n\nRevenue grew 23%\n\n| Q2 | Q3 |",
+      },
     ]);
   });
 

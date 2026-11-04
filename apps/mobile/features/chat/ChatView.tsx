@@ -1,5 +1,5 @@
 import { Link, One, useSafeAreaInsets } from "one";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -20,7 +20,9 @@ import {
 import { SystemIcon } from "~/features/SystemIcon";
 import { colors, sharedStyles } from "~/features/theme";
 import { ChatHeader } from "./ChatHeader";
+import type { Source } from "@multimodal-rag/shared";
 import { Markdown } from "./Markdown";
+import { SourceSheet } from "./SourceSheet";
 import type { ChatViewProps, Turn } from "./useChat";
 
 const PAGE_PADDING = 16;
@@ -138,7 +140,15 @@ function AnswerActions({ answer }: { answer: string }) {
 
 // memo: a finished turn keeps the same object, so only the turn being answered is drawn again
 // with each new piece of text
-const TurnRow = memo(function TurnRow({ turn, thinking }: { turn: Turn; thinking: boolean }) {
+const TurnRow = memo(function TurnRow({
+  turn,
+  thinking,
+  openSource,
+}: {
+  turn: Turn;
+  thinking: boolean;
+  openSource: (source: Source) => void;
+}) {
   const finished = turn.sources !== undefined || turn.stopped;
   return (
     <View style={styles.turn}>
@@ -159,12 +169,18 @@ const TurnRow = memo(function TurnRow({ turn, thinking }: { turn: Turn; thinking
         {turn.sources?.length ? (
           <View style={styles.sources}>
             {turn.sources.map((source) => (
-              <View key={`${source.documentId}#${source.page}`} style={styles.source}>
+              <Pressable
+                key={`${source.documentId}#${source.page}`}
+                onPress={() => openSource(source)}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${source.fileName}, page ${source.page}`}
+                style={({ pressed }) => (pressed ? styles.sourcePressed : styles.source)}
+              >
                 <SystemIcon name="doc.text" fallback="" size={11} color={colors.accent} />
                 <Text style={styles.sourceText} numberOfLines={1}>
                   {source.fileName} · p. {source.page}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         ) : null}
@@ -187,6 +203,9 @@ export function ChatView({
   startOver,
 }: ChatViewProps) {
   const [draft, setDraft] = useState("");
+  // the tapped source; it stays set while the sheet closes, so the sheet isn't emptied as it goes
+  const [source, setSource] = useState<Source | null>(null);
+  const [sourceOpen, setSourceOpen] = useState(false);
   // how far down the window this screen starts (the header), which the keyboard must be offset by
   const [top, setTop] = useState(0);
   const root = useRef<HostInstance>(null);
@@ -214,8 +233,18 @@ export function ChatView({
     atEnd.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - END_MARGIN;
   };
 
+  // the same function every render, so finished turns aren't drawn again
+  const openSource = useCallback((tapped: Source) => {
+    setSource(tapped);
+    setSourceOpen(true);
+  }, []);
+
   const renderTurn = ({ item, index }: ListRenderItemInfo<Turn>) => (
-    <TurnRow turn={item} thinking={!item.answer && loading && index === turns.length - 1} />
+    <TurnRow
+      turn={item}
+      thinking={!item.answer && loading && index === turns.length - 1}
+      openSource={openSource}
+    />
   );
 
   return (
@@ -347,6 +376,7 @@ export function ChatView({
           </View>
         </View>
       </KeyboardAvoidingView>
+      <SourceSheet source={source} open={sourceOpen} close={() => setSourceOpen(false)} />
     </View>
   );
 }
@@ -374,6 +404,16 @@ const input = {
   paddingBottom: 7,
   paddingTop: 7,
 };
+const sourcePill = {
+  alignItems: "center",
+  backgroundColor: colors.fill,
+  borderRadius: 12,
+  flexDirection: "row",
+  gap: 4,
+  maxWidth: "100%",
+  paddingHorizontal: 10,
+  paddingVertical: 5,
+} as const;
 const suggestion = {
   backgroundColor: colors.fill,
   borderRadius: 18,
@@ -420,16 +460,8 @@ const styles = StyleSheet.create({
   root: { backgroundColor: colors.background, flex: 1, minHeight: "100%" },
   sendButton,
   sendButtonOff: { ...sendButton, opacity: 0.35 },
-  source: {
-    alignItems: "center",
-    backgroundColor: colors.fill,
-    borderRadius: 12,
-    flexDirection: "row",
-    gap: 4,
-    maxWidth: "100%",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
+  source: sourcePill,
+  sourcePressed: { ...sourcePill, opacity: 0.6 },
   sourceText: { color: colors.text, flexShrink: 1, fontSize: 13 },
   sources: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   suggestion,

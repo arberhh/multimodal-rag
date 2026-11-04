@@ -378,6 +378,41 @@ describe("chat screen", () => {
     expect(mockSetString).toHaveBeenCalledWith("5M.");
   });
 
+  it("shows the part of the page a source used when it's tapped", async () => {
+    const quoted = { ...source, quote: "## Revenue\n\nQ1 revenue was 5M." };
+    await render(<Chat />);
+    await ask("Q1?");
+    await act(async () =>
+      FakeRequest.last.receive(text("5M.") + event("done", { sources: [quoted] })),
+    );
+    await act(async () => FakeRequest.last.finish());
+    expect(screen.queryByText("Q1 revenue was 5M.")).toBeNull();
+
+    await act(async () => fireEvent.press(screen.getByLabelText("Open report.pdf, page 3")));
+
+    expect(screen.getByText("Page 3")).toBeOnTheScreen();
+    expect(screen.getByText("Revenue")).toBeOnTheScreen();
+    expect(screen.getByText("Q1 revenue was 5M.")).toBeOnTheScreen();
+
+    await act(async () => fireEvent.press(screen.getByText("Done")));
+    expect(screen.queryByText("Q1 revenue was 5M.")).toBeNull();
+  });
+
+  it("says so when a saved source has no quote", async () => {
+    await render(<Chat />);
+    await ask("Q1?");
+    await act(async () =>
+      FakeRequest.last.receive(text("5M.") + event("done", { sources: [source] })),
+    );
+    await act(async () => FakeRequest.last.finish());
+
+    await act(async () => fireEvent.press(screen.getByLabelText("Open report.pdf, page 3")));
+
+    expect(
+      screen.getByText("This answer was saved before the app kept the part of the page it used."),
+    ).toBeOnTheScreen();
+  });
+
   it("opens a saved chat and carries on in it", async () => {
     mockParams.id = "c9";
     mockFetch.mockResolvedValueOnce({
