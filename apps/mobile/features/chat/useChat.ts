@@ -1,7 +1,8 @@
 import { One } from "one";
 import { useEffect, useReducer, useRef, useState } from "react";
-import { getMessages, type Message } from "~/features/conversations/api";
-import { askQuestion, createConversation, type Source } from "./api";
+import type { Message, Source } from "@multimodal-rag/shared";
+import { getMessages } from "~/features/conversations/api";
+import { askQuestion, createConversation } from "./api";
 
 export type Turn = {
   question: string;
